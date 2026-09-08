@@ -84,10 +84,33 @@
 
   .tq-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 20px 10px; }
 
-  .tq-quiz-q { font-size: 14px; color: var(--ink-soft); margin-bottom: 6px; }
+  .tq-quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 10px; }
+  .tq-quiz-q { font-size: 14px; color: var(--ink-soft); }
   .tq-quiz-hint { font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 18px; line-height: 1.5; }
   .tq-quiz-row { display: flex; gap: 8px; }
   .tq-quiz-row .tq-input { flex: 1; }
+
+  .tq-mode-toggle { display: flex; gap: 4px; flex-shrink: 0; }
+  .tq-mode-btn {
+    font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--ink-soft);
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+  }
+  .tq-mode-btn.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tq-mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .tq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tq-choice-btn {
+    font-family: 'Zen Maru Gothic', sans-serif; font-size: 15px; font-weight: 500;
+    padding: 12px 10px; border-radius: 4px; border: 2px solid var(--ink);
+    background: rgba(255,255,255,0.6); color: var(--ink); cursor: pointer; text-align: center;
+  }
+  .tq-choice-btn:hover:not(:disabled) { background: rgba(200,138,30,0.15); }
+  .tq-choice-btn:disabled { cursor: not-allowed; }
+  .tq-choice-btn.correct { background: var(--sage-bg); border-color: var(--sage); color: var(--sage); }
+  .tq-choice-btn.wrong { background: var(--brick-bg); border-color: var(--brick); color: var(--brick); }
+
+  .tq-next-row { margin-top: 14px; }
 
   .tq-feedback { margin-top: 16px; padding: 12px 14px; border-radius: 4px; font-size: 15px; font-weight: 500; display: none; }
   .tq-feedback.correct { background: var(--sage-bg); color: var(--sage); border: 1px solid var(--sage); }
@@ -138,14 +161,26 @@
         <div class="tq-empty">単語を登録したらクイズが始められるっす</div>
       </div>
       <div class="tq-card hidden" id="quizCard">
-        <div class="tq-quiz-q">この意味・ヒントに当てはまる単語は？</div>
+        <div class="tq-quiz-header">
+          <div class="tq-quiz-q">この意味・ヒントに当てはまる単語は？</div>
+          <div class="tq-mode-toggle" id="modeToggle">
+            <button class="tq-mode-btn active" type="button" id="modeInputBtn">入力</button>
+            <button class="tq-mode-btn" type="button" id="modeChoiceBtn">4択</button>
+          </div>
+        </div>
         <p class="tq-quiz-hint" id="quizHint"></p>
+
         <form class="tq-quiz-row" id="answerForm">
           <input class="tq-input" id="answerInput" placeholder="答えを入力">
           <button class="tq-btn" type="submit" id="answerBtn">答える</button>
-          <button class="tq-btn tq-btn-ghost hidden" type="button" id="nextBtn">次へ</button>
         </form>
+
+        <div class="tq-choices hidden" id="choiceMode"></div>
+
         <div class="tq-feedback" id="feedback"></div>
+        <div class="tq-next-row hidden" id="nextRow">
+          <button class="tq-btn tq-btn-ghost" type="button" id="nextBtn">次へ</button>
+        </div>
         <div class="tq-score" id="scoreLabel">正解数 0 / 0</div>
       </div>
     </div>
@@ -179,8 +214,14 @@
   const answerInput = document.getElementById('answerInput');
   const answerBtn = document.getElementById('answerBtn');
   const nextBtn = document.getElementById('nextBtn');
+  const nextRow = document.getElementById('nextRow');
   const feedbackEl = document.getElementById('feedback');
   const scoreLabel = document.getElementById('scoreLabel');
+  const modeInputBtn = document.getElementById('modeInputBtn');
+  const modeChoiceBtn = document.getElementById('modeChoiceBtn');
+  const choiceModeDiv = document.getElementById('choiceMode');
+
+  let quizMode = localStorage.getItem('vocab-quiz-mode') === 'choice' ? 'choice' : 'input';
 
   function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -240,6 +281,13 @@
       wordList.appendChild(li);
     });
     tabQuiz.disabled = entries.length === 0;
+    if (modeChoiceBtn) {
+      modeChoiceBtn.disabled = entries.length < 2;
+      if (entries.length < 2 && quizMode === 'choice') {
+        quizMode = 'input';
+        localStorage.setItem('vocab-quiz-mode', 'input');
+      }
+    }
   }
 
   function removeEntry(id) {
@@ -313,6 +361,28 @@
     showQuestion();
   }
 
+  function applyModeUI() {
+    modeInputBtn.classList.toggle('active', quizMode === 'input');
+    modeChoiceBtn.classList.toggle('active', quizMode === 'choice');
+    answerForm.classList.toggle('hidden', quizMode !== 'input');
+    choiceModeDiv.classList.toggle('hidden', quizMode !== 'choice');
+  }
+
+  function buildChoices() {
+    choiceModeDiv.innerHTML = '';
+    const others = entries.filter((it) => it.id !== current.id);
+    const distractors = shuffle(others).slice(0, 3).map((it) => it.word);
+    const options = shuffle([current.word, ...distractors]);
+    options.forEach((word) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tq-choice-btn';
+      btn.textContent = word;
+      btn.addEventListener('click', () => selectChoice(word, btn));
+      choiceModeDiv.appendChild(btn);
+    });
+  }
+
   function showQuestion() {
     quizHint.textContent = current.hint;
     answerInput.value = '';
@@ -320,9 +390,25 @@
     feedbackEl.style.display = 'none';
     feedbackShown = false;
     answerBtn.classList.remove('hidden');
-    nextBtn.classList.add('hidden');
+    nextRow.classList.add('hidden');
+    applyModeUI();
+    if (quizMode === 'choice') {
+      buildChoices();
+    } else {
+      setTimeout(() => answerInput.focus(), 0);
+    }
     scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
-    setTimeout(() => answerInput.focus(), 0);
+  }
+
+  function finishQuestion(isCorrect, correctText) {
+    score.total += 1;
+    if (isCorrect) score.correct += 1;
+    feedbackShown = true;
+    feedbackEl.className = 'tq-feedback ' + (isCorrect ? 'correct' : 'wrong');
+    feedbackEl.textContent = isCorrect ? '正解っす！' : `不正解っす。正解は「${correctText}」`;
+    feedbackEl.style.display = 'block';
+    nextRow.classList.remove('hidden');
+    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
   }
 
   answerForm.addEventListener('submit', (e) => {
@@ -330,16 +416,34 @@
     if (!current || feedbackShown) return;
     const norm = (s) => s.trim().toLowerCase();
     const isCorrect = answerInput.value.trim() !== '' && norm(answerInput.value) === norm(current.word);
-    score.total += 1;
-    if (isCorrect) score.correct += 1;
-    feedbackShown = true;
     answerInput.disabled = true;
     answerBtn.classList.add('hidden');
-    nextBtn.classList.remove('hidden');
-    feedbackEl.className = 'tq-feedback ' + (isCorrect ? 'correct' : 'wrong');
-    feedbackEl.textContent = isCorrect ? '正解っす！' : `不正解っす。正解は「${current.word}」`;
-    feedbackEl.style.display = 'block';
-    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
+    finishQuestion(isCorrect, current.word);
+  });
+
+  function selectChoice(word, btnEl) {
+    if (!current || feedbackShown) return;
+    const isCorrect = word === current.word;
+    Array.from(choiceModeDiv.children).forEach((btn) => {
+      btn.disabled = true;
+      if (btn.textContent === current.word) btn.classList.add('correct');
+      else if (btn === btnEl) btn.classList.add('wrong');
+    });
+    finishQuestion(isCorrect, current.word);
+  }
+
+  modeInputBtn.addEventListener('click', () => {
+    if (quizMode === 'input') return;
+    quizMode = 'input';
+    localStorage.setItem('vocab-quiz-mode', 'input');
+    if (current) showQuestion();
+  });
+
+  modeChoiceBtn.addEventListener('click', () => {
+    if (quizMode === 'choice' || modeChoiceBtn.disabled) return;
+    quizMode = 'choice';
+    localStorage.setItem('vocab-quiz-mode', 'choice');
+    if (current) showQuestion();
   });
 
   nextBtn.addEventListener('click', nextQuestion);
