@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たんご帳</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    --paper: #FAF6EC;
+    --line: #E3D9C0;
+    --ink: #2B2A28;
+    --ink-soft: #6b6357;
+    --mustard: #C88A1E;
+    --mustard-deep: #9C6B14;
+    --sage: #4C7A5D;
+    --sage-bg: #E4EDE4;
+    --brick: #B24C3C;
+    --brick-bg: #F3E2DD;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 33px, var(--line) 34px);
+    padding: 28px 20px 40px;
+  }
+  .tq-inner { max-width: 480px; margin: 0 auto; }
+  .tq-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 22px; border-bottom: 3px solid var(--ink); padding-bottom: 10px;
+  }
+  .tq-title {
+    font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700;
+    font-size: 26px; letter-spacing: 0.02em; margin: 0;
+  }
+  .tq-title span { color: var(--mustard-deep); }
+  .tq-tabs { display: flex; gap: 6px; }
+  .tq-tab {
+    font-family: 'Zen Maru Gothic', sans-serif; font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border: 2px solid var(--ink); border-radius: 999px;
+    background: transparent; cursor: pointer; color: var(--ink);
+  }
+  .tq-tab.active { background: var(--ink); color: var(--paper); }
+  .tq-tab:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .tq-card {
+    background: rgba(255,255,255,0.55); border: 2px solid var(--ink);
+    border-radius: 4px; padding: 18px; margin-bottom: 18px;
+  }
+  .tq-label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 500; }
+  .tq-field { margin-bottom: 14px; }
+  .tq-input {
+    width: 100%; font-family: inherit; font-size: 16px; padding: 9px 10px;
+    border: none; border-bottom: 2px solid var(--ink); background: transparent;
+    color: var(--ink); outline: none;
+  }
+  .tq-input:focus { border-bottom-color: var(--mustard-deep); }
+  .tq-error { color: var(--brick); font-size: 13px; margin: -6px 0 10px; display: none; }
+  .tq-btn {
+    font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; font-size: 15px;
+    padding: 10px 20px; border-radius: 999px; border: 2px solid var(--ink);
+    background: var(--mustard); color: var(--ink); cursor: pointer;
+  }
+  .tq-btn:hover { background: var(--mustard-deep); color: var(--paper); }
+  .tq-btn:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
+  .tq-btn-ghost { background: transparent; }
+
+  .tq-list-title { font-size: 14px; color: var(--ink-soft); margin: 0 0 10px; display: flex; justify-content: space-between; }
+  .tq-list { list-style: none; margin: 0; padding: 0; }
+  .tq-list li {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    padding: 8px 0; border-bottom: 1px dashed var(--line);
+  }
+  .tq-list li:last-child { border-bottom: none; }
+  .tq-word { font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; white-space: nowrap; }
+  .tq-hint {
+    color: var(--ink-soft); font-size: 13px; flex: 1; margin-left: 8px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tq-del { border: none; background: none; color: var(--brick); font-size: 13px; cursor: pointer; flex-shrink: 0; }
+
+  .tq-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 20px 10px; }
+
+  .tq-quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 10px; }
+  .tq-quiz-q { font-size: 14px; color: var(--ink-soft); }
+  .tq-quiz-hint { font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 18px; line-height: 1.5; }
+  .tq-quiz-row { display: flex; gap: 8px; }
+  .tq-quiz-row .tq-input { flex: 1; }
+
+  .tq-mode-toggle { display: flex; gap: 4px; flex-shrink: 0; }
+  .tq-mode-btn {
+    font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--ink-soft);
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+  }
+  .tq-mode-btn.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tq-mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .tq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tq-choice-btn {
+    font-family: 'Zen Maru Gothic', sans-serif; font-size: 15px; font-weight: 500;
+    padding: 12px 10px; border-radius: 4px; border: 2px solid var(--ink);
+    background: rgba(255,255,255,0.6); color: var(--ink); cursor: pointer; text-align: center;
+  }
+  .tq-choice-btn:hover:not(:disabled) { background: rgba(200,138,30,0.15); }
+  .tq-choice-btn:disabled { cursor: not-allowed; }
+  .tq-choice-btn.correct { background: var(--sage-bg); border-color: var(--sage); color: var(--sage); }
+  .tq-choice-btn.wrong { background: var(--brick-bg); border-color: var(--brick); color: var(--brick); }
+
+  .tq-next-row { margin-top: 14px; }
+
+  .tq-feedback { margin-top: 16px; padding: 12px 14px; border-radius: 4px; font-size: 15px; font-weight: 500; display: none; }
+  .tq-feedback.correct { background: var(--sage-bg); color: var(--sage); border: 1px solid var(--sage); }
+  .tq-feedback.wrong { background: var(--brick-bg); color: var(--brick); border: 1px solid var(--brick); }
+  .tq-score { font-size: 13px; color: var(--ink-soft); margin-top: 18px; text-align: right; }
+  .tq-save-error { font-size: 12px; color: var(--brick); margin-top: 8px; display: none; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="tq-inner">
+    <div class="tq-header">
+      <h1 class="tq-title">たんご<span>帳</span></h1>
+      <div class="tq-tabs">
+        <button class="tq-tab active" id="tabRegister">登録</button>
+        <button class="tq-tab" id="tabQuiz">クイズ</button>
+      </div>
+    </div>
+
+    <!-- 登録画面 -->
+    <div id="registerView">
+      <form class="tq-card" id="addForm">
+        <div class="tq-field">
+          <label class="tq-label">覚えたい単語</label>
+          <input class="tq-input" id="wordInput" placeholder="例）機を見るに敏">
+        </div>
+        <div class="tq-field">
+          <label class="tq-label">意味・ヒント（クイズで出す文）</label>
+          <input class="tq-input" id="hintInput" placeholder="例）チャンスをすばやく捉えて行動すること">
+        </div>
+        <div class="tq-error" id="formError"></div>
+        <button class="tq-btn" type="submit">追加する</button>
+        <div class="tq-save-error" id="saveError"></div>
+      </form>
+
+      <div class="tq-list-title">
+        <span>登録した単語</span>
+        <span id="countLabel">0件</span>
+      </div>
+      <div class="tq-empty" id="emptyList">まだ単語がないっす。上のフォームから登録してほしいっす</div>
+      <ul class="tq-list" id="wordList"></ul>
+    </div>
+
+    <!-- クイズ画面 -->
+    <div id="quizView" class="hidden">
+      <div class="tq-card" id="quizNoWords">
+        <div class="tq-empty">単語を登録したらクイズが始められるっす</div>
+      </div>
+      <div class="tq-card hidden" id="quizCard">
+        <div class="tq-quiz-header">
+          <div class="tq-quiz-q">この意味・ヒントに当てはまる単語は？</div>
+          <div class="tq-mode-toggle" id="modeToggle">
+            <button class="tq-mode-btn active" type="button" id="modeInputBtn">入力</button>
+            <button class="tq-mode-btn" type="button" id="modeChoiceBtn">4択</button>
+          </div>
+        </div>
+        <p class="tq-quiz-hint" id="quizHint"></p>
+
+        <form class="tq-quiz-row" id="answerForm">
+          <input class="tq-input" id="answerInput" placeholder="答えを入力">
+          <button class="tq-btn" type="submit" id="answerBtn">答える</button>
+        </form>
+
+        <div class="tq-choices hidden" id="choiceMode"></div>
+
+        <div class="tq-feedback" id="feedback"></div>
+        <div class="tq-next-row hidden" id="nextRow">
+          <button class="tq-btn tq-btn-ghost" type="button" id="nextBtn">次へ</button>
+        </div>
+        <div class="tq-score" id="scoreLabel">正解数 0 / 0</div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA2ySQxuXoL3Vg-Fn8HKA_oyd1BHmqo03I",
+    authDomain: "dagashi-inventory.firebaseapp.com",
+    projectId: "dagashi-inventory",
+    storageBucket: "dagashi-inventory.firebasestorage.app",
+    messagingSenderId: "1038759847620",
+    appId: "1:1038759847620:web:15f8a008ff2ebfaf3b0b91"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const entriesCol = collection(db, 'tango-quiz-entries');
+
+  let entries = [];
+  let loaded = false;
+  let queue = [];
+  let current = null;
+  let feedbackShown = false;
+  let score = { correct: 0, total: 0 };
+
+  const tabRegister = document.getElementById('tabRegister');
+  const tabQuiz = document.getElementById('tabQuiz');
+  const registerView = document.getElementById('registerView');
+  const quizView = document.getElementById('quizView');
+  const addForm = document.getElementById('addForm');
+  const wordInput = document.getElementById('wordInput');
+  const hintInput = document.getElementById('hintInput');
+  const formError = document.getElementById('formError');
+  const saveError = document.getElementById('saveError');
+  const countLabel = document.getElementById('countLabel');
+  const emptyList = document.getElementById('emptyList');
+  const wordList = document.getElementById('wordList');
+  const quizNoWords = document.getElementById('quizNoWords');
+  const quizCard = document.getElementById('quizCard');
+  const quizHint = document.getElementById('quizHint');
+  const answerForm = document.getElementById('answerForm');
+  const answerInput = document.getElementById('answerInput');
+  const answerBtn = document.getElementById('answerBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const nextRow = document.getElementById('nextRow');
+  const feedbackEl = document.getElementById('feedback');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const modeInputBtn = document.getElementById('modeInputBtn');
+  const modeChoiceBtn = document.getElementById('modeChoiceBtn');
+  const choiceModeDiv = document.getElementById('choiceMode');
+
+  let quizMode = localStorage.getItem('vocab-quiz-mode') === 'choice' ? 'choice' : 'input';
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function renderList() {
+    countLabel.textContent = entries.length + '件';
+    wordList.innerHTML = '';
+    emptyList.style.display = entries.length === 0 ? 'block' : 'none';
+    entries.forEach((it) => {
+      const li = document.createElement('li');
+      const wordSpan = document.createElement('span');
+      wordSpan.className = 'tq-word';
+      wordSpan.textContent = it.word;
+      const hintSpan = document.createElement('span');
+      hintSpan.className = 'tq-hint';
+      hintSpan.textContent = it.hint;
+      const delBtn = document.createElement('button');
+      delBtn.className = 'tq-del';
+      delBtn.textContent = '削除';
+      delBtn.onclick = () => removeEntry(it.id);
+      li.appendChild(wordSpan);
+      li.appendChild(hintSpan);
+      li.appendChild(delBtn);
+      wordList.appendChild(li);
+    });
+    tabQuiz.disabled = entries.length === 0;
+    if (modeChoiceBtn) {
+      modeChoiceBtn.disabled = entries.length < 2;
+      if (entries.length < 2 && quizMode === 'choice') {
+        quizMode = 'input';
+        localStorage.setItem('vocab-quiz-mode', 'input');
+      }
+    }
+  }
+
+  function removeEntry(id) {
+    deleteDoc(doc(db, 'tango-quiz-entries', id)).catch(() => {
+      saveError.textContent = '削除でエラーが出たっす、もう一回試してみてほしいっす';
+      saveError.style.display = 'block';
+    });
+    queue = queue.filter((it) => it.id !== id);
+    if (current && current.id === id) {
+      current = null;
+      quizCard.classList.add('hidden');
+      quizNoWords.classList.remove('hidden');
+    }
+  }
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const w = wordInput.value.trim();
+    const h = hintInput.value.trim();
+    formError.style.display = 'none';
+    if (!w || !h) {
+      formError.textContent = '単語とヒント（意味）、両方書いてほしいっす';
+      formError.style.display = 'block';
+      return;
+    }
+    if (entries.some((it) => it.word === w)) {
+      formError.textContent = 'その単語、もう登録済みっす';
+      formError.style.display = 'block';
+      return;
+    }
+    try {
+      await addDoc(entriesCol, { word: w, hint: h, createdAt: Date.now() });
+      saveError.style.display = 'none';
+      wordInput.value = '';
+      hintInput.value = '';
+      wordInput.focus();
+    } catch (err) {
+      saveError.textContent = '保存でエラー出たっす、ネットワークとか見直してみてほしいっす';
+      saveError.style.display = 'block';
+    }
+  });
+
+  onSnapshot(entriesCol, (snapshot) => {
+    entries = snapshot.docs.map((d) => ({ id: d.id, word: d.data().word, hint: d.data().hint }));
+    loaded = true;
+    renderList();
+  }, () => {
+    loaded = true;
+    saveError.textContent = 'データの取得でエラーが出たっす';
+    saveError.style.display = 'block';
+  });
+
+  function switchTab(tab) {
+    if (tab === 'register') {
+      tabRegister.classList.add('active');
+      tabQuiz.classList.remove('active');
+      registerView.classList.remove('hidden');
+      quizView.classList.add('hidden');
+    } else {
+      if (entries.length === 0) return;
+      tabQuiz.classList.add('active');
+      tabRegister.classList.remove('active');
+      registerView.classList.add('hidden');
+      quizView.classList.remove('hidden');
+      startQuiz();
+    }
+  }
+
+  tabRegister.addEventListener('click', () => switchTab('register'));
+  tabQuiz.addEventListener('click', () => switchTab('quiz'));
+
+  function startQuiz() {
+    quizNoWords.classList.add('hidden');
+    quizCard.classList.remove('hidden');
+    const q = shuffle(entries);
+    current = q[0];
+    queue = q.slice(1);
+    score = { correct: 0, total: 0 };
+    showQuestion();
+  }
+
+  function nextQuestion() {
+    if (queue.length === 0) queue = shuffle(entries);
+    current = queue[0];
+    queue = queue.slice(1);
+    showQuestion();
+  }
+
+  function applyModeUI() {
+    modeInputBtn.classList.toggle('active', quizMode === 'input');
+    modeChoiceBtn.classList.toggle('active', quizMode === 'choice');
+    answerForm.classList.toggle('hidden', quizMode !== 'input');
+    choiceModeDiv.classList.toggle('hidden', quizMode !== 'choice');
+  }
+
+  function buildChoices() {
+    choiceModeDiv.innerHTML = '';
+    const others = entries.filter((it) => it.id !== current.id);
+    const distractors = shuffle(others).slice(0, 3).map((it) => it.word);
+    const options = shuffle([current.word, ...distractors]);
+    options.forEach((word) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tq-choice-btn';
+      btn.textContent = word;
+      btn.addEventListener('click', () => selectChoice(word, btn));
+      choiceModeDiv.appendChild(btn);
+    });
+  }
+
+  function showQuestion() {
+    quizHint.textContent = current.hint;
+    answerInput.value = '';
+    answerInput.disabled = false;
+    feedbackEl.style.display = 'none';
+    feedbackShown = false;
+    answerBtn.classList.remove('hidden');
+    nextRow.classList.add('hidden');
+    applyModeUI();
+    if (quizMode === 'choice') {
+      buildChoices();
+    } else {
+      setTimeout(() => answerInput.focus(), 0);
+    }
+    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
+  }
+
+  function finishQuestion(isCorrect, correctText) {
+    score.total += 1;
+    if (isCorrect) score.correct += 1;
+    feedbackShown = true;
+    feedbackEl.className = 'tq-feedback ' + (isCorrect ? 'correct' : 'wrong');
+    feedbackEl.textContent = isCorrect ? '正解っす！' : `不正解っす。正解は「${correctText}」`;
+    feedbackEl.style.display = 'block';
+    nextRow.classList.remove('hidden');
+    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
+  }
+
+  answerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!current || feedbackShown) return;
+    const norm = (s) => s.trim().toLowerCase();
+    const isCorrect = answerInput.value.trim() !== '' && norm(answerInput.value) === norm(current.word);
+    answerInput.disabled = true;
+    answerBtn.classList.add('hidden');
+    finishQuestion(isCorrect, current.word);
+  });
+
+  function selectChoice(word, btnEl) {
+    if (!current || feedbackShown) return;
+    const isCorrect = word === current.word;
+    Array.from(choiceModeDiv.children).forEach((btn) => {
+      btn.disabled = true;
+      if (btn.textContent === current.word) btn.classList.add('correct');
+      else if (btn === btnEl) btn.classList.add('wrong');
+    });
+    finishQuestion(isCorrect, current.word);
+  }
+
+  modeInputBtn.addEventListener('click', () => {
+    if (quizMode === 'input') return;
+    quizMode = 'input';
+    localStorage.setItem('vocab-quiz-mode', 'input');
+    if (current) showQuestion();
+  });
+
+  modeChoiceBtn.addEventListener('click', () => {
+    if (quizMode === 'choice' || modeChoiceBtn.disabled) return;
+    quizMode = 'choice';
+    localStorage.setItem('vocab-quiz-mode', 'choice');
+    if (current) showQuestion();
+  });
+
+  nextBtn.addEventListener('click', nextQuestion);
+</script>
+</body>
+</html>
