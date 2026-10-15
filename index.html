@@ -171,6 +171,23 @@
   #listenPlayBtn { margin-bottom: 14px; }
 
   .hidden { display: none !important; }
+  .tq-scene-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; margin-top: 10px; padding: 12px; border: 2px solid var(--ink); border-radius: 6px; background: rgba(255,255,255,0.6); cursor: pointer; font-family: 'Zen Maru Gothic', sans-serif; color: var(--ink); }
+  .tq-scene-item:hover { background: rgba(200,138,30,0.15); }
+  .tq-scene-icon { font-size: 28px; }
+  .tq-scene-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .tq-scene-title { font-size: 16px; font-weight: 700; }
+  .tq-scene-intro { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .tq-scene-best { font-size: 13px; font-weight: 700; color: var(--sage); white-space: nowrap; }
+  .tq-scene-head { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
+  .tq-bubble { position: relative; padding: 14px 44px 12px 14px; border: 2px solid var(--ink); border-radius: 14px 14px 14px 2px; background: rgba(255,255,255,0.75); }
+  .tq-bubble-en { font-size: 17px; font-weight: 700; line-height: 1.5; }
+  .tq-bubble-ja { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+  .tq-bubble .tq-speak { position: absolute; top: 8px; right: 8px; }
+  .tq-scene-q { margin: 14px 0 10px; font-size: 14px; font-weight: 700; }
+  .tq-scene-choices { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .tq-scene-choices .tq-choice-btn { text-align: left; font-size: 15px; }
+  .tq-scene-ja { margin-top: 6px; font-size: 13px; font-weight: 400; }
+  .tq-scene-key { margin-top: 4px; font-size: 13px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -180,6 +197,7 @@
       <div class="tq-tabs">
         <button class="tq-tab active" id="tabRegister">登録</button>
         <button class="tq-tab" id="tabQuiz">クイズ</button>
+        <button class="tq-tab" id="tabScene">🎭 場面</button>
       </div>
     </div>
 
@@ -291,6 +309,10 @@
           <button class="tq-btn tq-btn-ghost hidden" type="button" id="weakRestartBtn">🔁 苦手だけやる</button>
         </div>
       </div>
+    </div>
+
+    <div id="sceneView" class="hidden">
+      <div class="tq-card" id="sceneBody"></div>
     </div>
   </div>
 
@@ -739,7 +761,7 @@
     saveError.style.display = 'block';
   });
 
-  function switchTab(tab) {
+  function switchTabOrig(tab) {
     if (tab === 'register') {
       tabRegister.classList.add('active');
       tabQuiz.classList.remove('active');
@@ -757,6 +779,178 @@
 
   tabRegister.addEventListener('click', () => switchTab('register'));
   tabQuiz.addEventListener('click', () => switchTab('quiz'));
+  // ===== 🎭 場面モード =====
+  const SCENES = [
+    { id: 'hotel', icon: '🏨', title: 'ホテルでチェックイン', intro: '予約から朝食、荷物、領収書まで',
+      steps: [
+        { n: 'Good evening. How may I help you?', nj: 'こんばんは。ご用件をうかがいます。', q: '予約していることを伝えよう', c: "I have a reservation under Tanaka.", w: ["I'd like a refund for this item.", "The shipment will arrive on Wednesday."], cj: '田中の名前で予約しています。', k: ['How may I help you?', 'reservation'] },
+        { n: 'Could you confirm your name and the dates of your stay?', nj: 'お名前と宿泊日を確認させていただけますか？', q: '「はい」と答えて名前と日程を伝えよう', c: 'Yes. Tanaka, from Friday to Sunday.', w: ['Yes. The deadline is Friday.', "No, I'm responsible for the budget."], cj: 'はい。田中で、金曜から日曜までです。', k: ['confirm'] },
+        { n: 'Breakfast is served from seven to ten in the lobby.', nj: '朝食は7時から10時、ロビーでご用意しています。', q: '朝食が無料かどうか聞いてみよう', c: 'Is the breakfast complimentary?', w: ['Is the breakfast mandatory?', 'Is the breakfast defective?'], cj: '朝食は無料ですか？', k: ['complimentary'] },
+        { n: 'Do you need help with your luggage?', nj: 'お荷物をお持ちしましょうか？', q: 'お願いして、荷物が2つあると伝えよう', c: 'Yes, please. I have two pieces of luggage.', w: ["No, I'm afraid I can't attend.", 'Yes, please submit the luggage.'], cj: 'はい、お願いします。荷物が2つあります。', k: ['luggage'] },
+        { n: 'Here is your key. Would you like a receipt?', nj: '鍵です。領収書はご入り用ですか？', q: '経費精算のために必要だと伝えよう', c: 'Yes, please. I need the receipt for my expense report.', w: ["Yes, please. I'll resign tomorrow.", 'No, I would like to reschedule the receipt.'], cj: 'はい。経費報告のために領収書が必要です。', k: ['receipt', 'expense'] }
+      ] },
+    { id: 'road', icon: '🗺️', title: '道に迷った！道案内', intro: '行き先を伝えて、道順を聞き取ろう',
+      steps: [
+        { n: 'You look lost. Where is your destination?', nj: '迷っているようですね。目的地はどちらですか？', q: '博物館に行きたいと伝えよう', c: "I'm going to the museum.", w: ["I'm going to inform the museum.", "I'm going to approve the museum."], cj: '博物館に行くところです。', k: ['destination'] },
+        { n: 'Go straight and turn left at the bank. The museum is between the bank and the post office.', nj: 'まっすぐ行って、銀行を左に曲がってください。博物館は銀行と郵便局の間です。', q: '聞き取った内容を確認しよう', c: "So it's between the bank and the post office?", w: ["So it's near the station?", "So it's across from the bakery?"], cj: 'つまり、銀行と郵便局の間ですね？', k: ["It's between A and B"] },
+        { n: 'It is a bit far. You can also take a bus.', nj: '少し遠いです。バスにも乗れますよ。', q: 'バスの運賃を聞いてみよう', c: 'How much is the fare?', w: ['How much is the warranty?', 'How much is the deadline?'], cj: '運賃はいくらですか？', k: ['fare'] },
+        { n: 'The bus will depart at nine. You have ten minutes.', nj: 'バスは9時に出発します。あと10分ありますよ。', q: '急ごうと言ってみよう', c: "Then let's hurry. Thank you for your help!", w: ["Then let's postpone the bus.", "Then let's authorize the bus."], cj: 'じゃあ急ぎましょう。助かりました！', k: ['depart'] }
+      ] },
+    { id: 'trouble', icon: '🛠️', title: '部屋のトラブル', intro: 'エアコンが故障…フロントに電話しよう',
+      steps: [
+        { n: 'Front desk. How can I help you?', nj: 'フロントです。どうされましたか？', q: 'エアコンが故障していると伝えよう', c: 'The air conditioner in my room has a malfunction.', w: ['The air conditioner in my room has a merger.', 'The air conditioner in my room has a subsidiary.'], cj: '部屋のエアコンが故障しています。', k: ['malfunction'] },
+        { n: "I'm sorry to hear that. I'll send someone from maintenance right away.", nj: 'それは申し訳ありません。すぐに保守担当を向かわせます。', q: '修理にどれくらいかかるか聞こう', c: 'How long will the repair take?', w: ['How long will the revenue take?', 'How long will the merger take?'], cj: '修理にどれくらいかかりますか？', k: ['repair', 'maintenance'] },
+        { n: 'About thirty minutes. Or we can offer you another room.', nj: '30分ほどです。別のお部屋をご用意することもできます。', q: '部屋を替えてほしいと伝えよう', c: "Yes, I'd like a replacement room, please.", w: ["Yes, I'd like a mandatory room, please.", "Yes, I'd like a defective room, please."], cj: 'はい、部屋を替えてください。', k: ['replacement'] },
+        { n: 'Of course. Is there anything else I can do for you?', nj: 'かしこまりました。ほかにできることはございますか？', q: '今夜の分の払い戻しをお願いしよう', c: "I'd like a refund for tonight.", w: ["I'd like a benefit for tonight.", "I'd like a competitor for tonight."], cj: '今夜の分の払い戻しをお願いします。', k: ['refund'] }
+      ] },
+    { id: 'phone', icon: '📞', title: '電話対応（オフィス）', intro: '上司あての電話を受けて、伝言を預かろう',
+      steps: [
+        { n: 'Hello, may I speak to Mr. Sato?', nj: 'もしもし、佐藤さんをお願いできますか？', q: '本日は外出中だと伝えよう', c: "I'm afraid he is out of the office today.", w: ['He will hire the office today.', 'He will launch the office today.'], cj: 'あいにく、本日は外出しております。', k: ["I'm afraid"] },
+        { n: "Oh, I see. That's a pity.", nj: 'そうですか。残念です。', q: '伝言を預かろうか聞いてみよう', c: 'Can I take a message?', w: ['Can I cancel a message?', 'Can I hire a message?'], cj: '伝言を預かりましょうか？', k: ['Can I take a message?'] },
+        { n: 'Could you tell him to call me back? My number is 555-0123.', nj: '折り返し電話するよう伝えてもらえますか？ 番号は555-0123です。', q: '了解して、伝えておくと答えよう', c: "Certainly. I'll tell him to call you back.", w: ["Certainly. I'll tell him to deliver you back.", "Certainly. I'll tell him to review you back."], cj: 'かしこまりました。折り返すよう伝えます。', k: ['Could you tell him to ～？'] },
+        { n: 'Also, could we reschedule tomorrow’s meeting?', nj: 'それと、明日の会議を変更できますか？', q: '予定を確認してから連絡すると答えよう', c: "Sure. I'll check his schedule and get back to you.", w: ["Sure. I'll check his warranty and get back to you.", "Sure. I'll check his invoice and get back to you."], cj: 'はい。彼の予定を確認して折り返します。', k: ['reschedule', 'schedule'] }
+      ] }
+  ];
+  const sceneView = document.getElementById('sceneView');
+  const tabScene = document.getElementById('tabScene');
+  const sceneBody = document.getElementById('sceneBody');
+  let scene = null, sIdx = 0, sCorrect = 0, sAnswered = false, sLevelUps = 0;
+
+  function sceneBest() { try { return JSON.parse(lsGet('vocab-quiz-scenes') || '{}') || {}; } catch (e) { return {}; } }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function normW(s) { return String(s).replace(/[’‘]/g, "'").trim().toLowerCase(); }
+  function findEntry(key) { const k = normW(key); return entries.find((x) => normW(x.word) === k); }
+
+  function bumpWords(keys, ok) {
+    const t = loadToday();
+    t.total += 1; if (ok) t.correct += 1;
+    lsSet('vocab-quiz-today', JSON.stringify(t));
+    keys.forEach((key) => {
+      const e = findEntry(key);
+      if (!e) return;
+      const oldL = Math.min(MAX_LEVEL, e.level || 0), oldM = e.miss || 0;
+      const nl = ok ? Math.min(MAX_LEVEL, oldL + 1) : oldL;
+      const nm = ok ? oldM : oldM + 1;
+      if (ok && nl > oldL) sLevelUps += 1;
+      if (nl !== oldL || nm !== oldM) {
+        e.level = nl; e.miss = nm;
+        updateDoc(doc(db, 'tango-quiz-entries', e.id), { level: nl, miss: nm }).catch(() => {});
+      }
+    });
+    renderProgress();
+  }
+
+  function renderSceneMenu() {
+    scene = null;
+    sceneBody.textContent = '';
+    const best = sceneBest();
+    sceneBody.appendChild(el('div', 'tq-quiz-q', '🎭 場面を選んでね（1場面 約1分）'));
+    SCENES.forEach((s) => {
+      const b = el('button', 'tq-scene-item');
+      b.type = 'button';
+      b.appendChild(el('span', 'tq-scene-icon', s.icon));
+      const box = el('span', 'tq-scene-text');
+      box.appendChild(el('span', 'tq-scene-title', s.title));
+      box.appendChild(el('span', 'tq-scene-intro', s.intro));
+      b.appendChild(box);
+      const sc = best[s.id];
+      b.appendChild(el('span', 'tq-scene-best', sc != null ? (sc >= s.steps.length ? '⭐ ' : '') + sc + '/' + s.steps.length : ''));
+      b.addEventListener('click', () => startScene(s));
+      sceneBody.appendChild(b);
+    });
+  }
+
+  function startScene(s) { scene = s; sIdx = 0; sCorrect = 0; sLevelUps = 0; renderStep(); }
+
+  function renderStep() {
+    const st = scene.steps[sIdx];
+    sAnswered = false;
+    sceneBody.textContent = '';
+    sceneBody.appendChild(el('div', 'tq-scene-head', scene.icon + ' ' + scene.title + '　' + (sIdx + 1) + ' / ' + scene.steps.length));
+    const bub = el('div', 'tq-bubble');
+    bub.appendChild(el('div', 'tq-bubble-en', st.n));
+    bub.appendChild(el('div', 'tq-bubble-ja', st.nj));
+    const sp = el('button', 'tq-speak', '🔊'); sp.type = 'button';
+    sp.addEventListener('click', () => speak(st.n));
+    bub.appendChild(sp);
+    sceneBody.appendChild(bub);
+    sceneBody.appendChild(el('div', 'tq-scene-q', '💬 あなたの返事：' + st.q));
+    const box = el('div', 'tq-scene-choices');
+    shuffle([st.c].concat(st.w)).forEach((txt) => {
+      const b = el('button', 'tq-choice-btn', txt); b.type = 'button';
+      b.addEventListener('click', () => answerStep(box, b, txt, st));
+      box.appendChild(b);
+    });
+    sceneBody.appendChild(box);
+    const fb = el('div', 'tq-feedback'); fb.id = 'sceneFb';
+    sceneBody.appendChild(fb);
+    const row = el('div', 'tq-next-row hidden'); row.id = 'sceneNext';
+    const back = el('button', 'tq-btn tq-btn-ghost', '場面一覧へ'); back.type = 'button';
+    back.addEventListener('click', renderSceneMenu);
+    const nx = el('button', 'tq-btn', sIdx + 1 >= scene.steps.length ? '結果を見る' : '次へ'); nx.type = 'button';
+    nx.addEventListener('click', () => { sIdx += 1; if (sIdx >= scene.steps.length) renderSceneResult(); else renderStep(); });
+    row.appendChild(back); row.appendChild(nx);
+    sceneBody.appendChild(row);
+    setTimeout(() => speak(st.n), 250);
+  }
+
+  function answerStep(box, btn, txt, st) {
+    if (sAnswered) return;
+    sAnswered = true;
+    const ok = txt === st.c;
+    if (ok) sCorrect += 1;
+    box.querySelectorAll('button').forEach((b) => {
+      b.disabled = true;
+      if (b.textContent === st.c) b.classList.add('correct');
+    });
+    if (!ok) btn.classList.add('wrong');
+    const fb = document.getElementById('sceneFb');
+    fb.className = 'tq-feedback ' + (ok ? 'correct' : 'wrong');
+    fb.textContent = '';
+    fb.appendChild(el('div', '', ok ? 'ナイス！自然な返事っす' : '惜しい！この場面ではこっちが自然っす'));
+    fb.appendChild(el('div', 'tq-scene-ja', '「' + st.c + '」＝' + st.cj));
+    st.k.forEach((key) => {
+      const e = findEntry(key);
+      fb.appendChild(el('div', 'tq-scene-key', '🔑 ' + key + (e ? '＝' + e.hint : '')));
+    });
+    fb.style.display = 'block';
+    document.getElementById('sceneNext').classList.remove('hidden');
+    bumpWords(st.k, ok);
+    speak(st.c);
+  }
+
+  function renderSceneResult() {
+    const n = scene.steps.length;
+    const best = sceneBest();
+    if (best[scene.id] == null || sCorrect > best[scene.id]) { best[scene.id] = sCorrect; lsSet('vocab-quiz-scenes', JSON.stringify(best)); }
+    sceneBody.textContent = '';
+    sceneBody.appendChild(el('div', 'tq-quiz-q', scene.icon + ' ' + scene.title + ' クリア！'));
+    const msg = sCorrect === n ? '全問ナチュラルな返事っす！完璧！' : sCorrect >= n - 1 ? 'ほぼ完璧っす！あと一歩！' : sCorrect >= Math.ceil(n / 2) ? 'いい調子っす。もう一回やると定着するっす' : '場面ごと覚えると残りやすいっす。もう一回いこう';
+    sceneBody.appendChild(el('p', 'tq-result-text', msg));
+    sceneBody.appendChild(el('div', 'tq-result-sub', sCorrect + ' / ' + n + ' 問正解' + (sLevelUps ? '　単語レベルUP ' + sLevelUps + '個！' : '')));
+    if (sCorrect === n) confetti(50);
+    const row = el('div', 'tq-result-actions');
+    const again = el('button', 'tq-btn', 'もう一回'); again.type = 'button';
+    again.addEventListener('click', () => startScene(scene));
+    const list = el('button', 'tq-btn tq-btn-ghost', '場面一覧へ'); list.type = 'button';
+    list.addEventListener('click', renderSceneMenu);
+    row.appendChild(again); row.appendChild(list);
+    sceneBody.appendChild(row);
+  }
+
+  function switchTab(tab) {
+    if (tab === 'scene') {
+      tabScene.classList.add('active'); tabRegister.classList.remove('active'); tabQuiz.classList.remove('active');
+      registerView.classList.add('hidden'); quizView.classList.add('hidden'); sceneView.classList.remove('hidden');
+      renderSceneMenu();
+      return;
+    }
+    if (tab === 'quiz' && entries.length === 0) return;
+    sceneView.classList.add('hidden'); tabScene.classList.remove('active');
+    switchTabOrig(tab);
+  }
+  tabScene.addEventListener('click', () => switchTab('scene'));
+
 
   function startQuiz() {
     const pool = filteredEntries();
