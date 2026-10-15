@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たんご帳</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    --paper: #FAF6EC;
+    --line: #E3D9C0;
+    --ink: #2B2A28;
+    --ink-soft: #6b6357;
+    --mustard: #C88A1E;
+    --mustard-deep: #9C6B14;
+    --sage: #4C7A5D;
+    --sage-bg: #E4EDE4;
+    --brick: #B24C3C;
+    --brick-bg: #F3E2DD;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 33px, var(--line) 34px);
+    padding: 28px 20px 40px;
+  }
+  .tq-inner { max-width: 480px; margin: 0 auto; }
+  .tq-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 22px; border-bottom: 3px solid var(--ink); padding-bottom: 10px;
+  }
+  .tq-title {
+    font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700;
+    font-size: 26px; letter-spacing: 0.02em; margin: 0;
+  }
+  .tq-title span { color: var(--mustard-deep); }
+  .tq-tabs { display: flex; gap: 6px; }
+  .tq-tab {
+    font-family: 'Zen Maru Gothic', sans-serif; font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border: 2px solid var(--ink); border-radius: 999px;
+    background: transparent; cursor: pointer; color: var(--ink);
+  }
+  .tq-tab.active { background: var(--ink); color: var(--paper); }
+  .tq-tab:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .tq-card {
+    background: rgba(255,255,255,0.55); border: 2px solid var(--ink);
+    border-radius: 4px; padding: 18px; margin-bottom: 18px;
+  }
+  .tq-label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 500; }
+  .tq-field { margin-bottom: 14px; }
+  .tq-input {
+    width: 100%; font-family: inherit; font-size: 16px; padding: 9px 10px;
+    border: none; border-bottom: 2px solid var(--ink); background: transparent;
+    color: var(--ink); outline: none;
+  }
+  .tq-input:focus { border-bottom-color: var(--mustard-deep); }
+  .tq-error { color: var(--brick); font-size: 13px; margin: -6px 0 10px; display: none; }
+  .tq-btn {
+    font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; font-size: 15px;
+    padding: 10px 20px; border-radius: 999px; border: 2px solid var(--ink);
+    background: var(--mustard); color: var(--ink); cursor: pointer;
+  }
+  .tq-btn:hover { background: var(--mustard-deep); color: var(--paper); }
+  .tq-btn:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
+  .tq-btn-ghost { background: transparent; }
+  .tq-form-actions { display: flex; gap: 8px; align-items: center; }
+
+  .tq-list-title { font-size: 14px; color: var(--ink-soft); margin: 0 0 10px; display: flex; justify-content: space-between; }
+  .tq-list { list-style: none; margin: 0; padding: 0; }
+  .tq-list li {
+    padding: 10px 0; border-bottom: 1px dashed var(--line);
+  }
+  .tq-list li:last-child { border-bottom: none; }
+  .tq-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tq-word { font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; white-space: nowrap; }
+  .tq-category-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: rgba(200,138,30,0.18); color: var(--mustard-deep); white-space: nowrap;
+  }
+  .tq-subgroup-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: var(--sage-bg); color: var(--sage); white-space: nowrap;
+  }
+  .tq-filter-row { display: flex; gap: 8px; }
+  .tq-filter-row > div { flex: 1; min-width: 0; }
+  .tq-hint {
+    color: var(--ink-soft); font-size: 13px; margin-top: 4px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .tq-item-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .tq-del { border: none; background: none; color: var(--brick); font-size: 13px; cursor: pointer; flex-shrink: 0; }
+  .tq-edit { border: none; background: none; color: var(--ink-soft); font-size: 13px; cursor: pointer; flex-shrink: 0; }
+  .tq-speak {
+    border: none; background: none; font-size: 15px; cursor: pointer; flex-shrink: 0;
+    padding: 0 2px; line-height: 1;
+  }
+  .tq-speak-quiz {
+    font-size: 20px; border: 2px solid var(--ink); border-radius: 999px;
+    width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.6);
+  }
+
+  .tq-category-filter { margin-bottom: 14px; }
+  .tq-category-filter .tq-label { margin-bottom: 6px; }
+  .tq-select {
+    width: 100%; font-family: inherit; font-size: 15px; padding: 8px 10px;
+    border: 2px solid var(--ink); border-radius: 4px; background: rgba(255,255,255,0.6);
+    color: var(--ink);
+  }
+
+  .tq-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 20px 10px; }
+
+  .tq-quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 10px; }
+  .tq-progress { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+  .tq-result-text { font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; margin: 10px 0 18px; }
+  .tq-quiz-q { font-size: 14px; color: var(--ink-soft); }
+  .tq-quiz-hint { font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 18px; line-height: 1.5; }
+  .tq-quiz-row { display: flex; gap: 8px; }
+  .tq-quiz-row .tq-input { flex: 1; }
+
+  .tq-mode-toggle { display: flex; gap: 4px; flex-shrink: 0; }
+  .tq-mode-btn {
+    font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--ink-soft);
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+  }
+  .tq-mode-btn.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tq-mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .tq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tq-choice-btn {
+    font-family: 'Zen Maru Gothic', sans-serif; font-size: 15px; font-weight: 500;
+    padding: 12px 10px; border-radius: 4px; border: 2px solid var(--ink);
+    background: rgba(255,255,255,0.6); color: var(--ink); cursor: pointer; text-align: center;
+  }
+  .tq-choice-btn:hover:not(:disabled) { background: rgba(200,138,30,0.15); }
+  .tq-choice-btn:disabled { cursor: not-allowed; }
+  .tq-choice-btn.correct { background: var(--sage-bg); border-color: var(--sage); color: var(--sage); }
+  .tq-choice-btn.wrong { background: var(--brick-bg); border-color: var(--brick); color: var(--brick); }
+
+  .tq-next-row { margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+
+  .tq-feedback { margin-top: 16px; padding: 12px 14px; border-radius: 4px; font-size: 15px; font-weight: 500; display: none; }
+  .tq-feedback.correct { background: var(--sage-bg); color: var(--sage); border: 1px solid var(--sage); }
+  .tq-feedback.wrong { background: var(--brick-bg); color: var(--brick); border: 1px solid var(--brick); }
+  .tq-score { font-size: 13px; color: var(--ink-soft); margin-top: 18px; text-align: right; }
+  .tq-save-error { font-size: 12px; color: var(--brick); margin-top: 8px; display: none; }
+
+  .tq-pc { border: 2px solid var(--ink); border-radius: 6px; background: rgba(255,255,255,0.6); padding: 12px 14px; margin-bottom: 16px; }
+  .tq-pc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; font-size: 15px; }
+  .tq-pc-today { font-size: 12px; font-weight: 500; color: var(--ink-soft); font-family: 'Zen Kaku Gothic New', sans-serif; }
+  .tq-bar { display: flex; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 10px 0 8px; }
+  .tq-bar-seg { height: 100%; transition: width 0.5s ease; }
+  .tq-bar-done { background: var(--sage); }
+  .tq-bar-grow { background: var(--mustard); }
+  .tq-pc-legend { font-size: 12px; color: var(--ink-soft); }
+  .tq-lv { font-size: 13px; line-height: 1; }
+  .tq-weak-row { margin-bottom: 12px; }
+  .tq-result-sub { white-space: pre-line; font-size: 14px; color: var(--ink-soft); line-height: 1.8; margin: -6px 0 18px; }
+  .tq-result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="tq-inner">
+    <div class="tq-header">
+      <h1 class="tq-title">たんご<span>帳</span></h1>
+      <div class="tq-tabs">
+        <button class="tq-tab active" id="tabRegister">登録</button>
+        <button class="tq-tab" id="tabQuiz">クイズ</button>
+      </div>
+    </div>
+
+    <div class="tq-pc" id="progressCard">
+      <div class="tq-pc-top"><span id="pcMain">🌸 定着 0語</span><span class="tq-pc-today" id="pcToday"></span></div>
+      <div class="tq-bar"><div class="tq-bar-seg tq-bar-done" id="pcDone" style="width:0%"></div><div class="tq-bar-seg tq-bar-grow" id="pcGrow" style="width:0%"></div></div>
+      <div class="tq-pc-legend" id="pcLegend"></div>
+    </div>
+
+    <!-- 登録画面 -->
+    <div id="registerView">
+      <form class="tq-card" id="addForm">
+        <div class="tq-field">
+          <label class="tq-label">覚えたい単語</label>
+          <input class="tq-input" id="wordInput" placeholder="例）機を見るに敏">
+        </div>
+        <div class="tq-field">
+          <label class="tq-label">意味・ヒント（クイズで出す文）</label>
+          <input class="tq-input" id="hintInput" placeholder="例）チャンスをすばやく捉えて行動すること">
+        </div>
+        <div class="tq-field">
+          <label class="tq-label">カテゴリー（任意）</label>
+          <input class="tq-input" id="categoryInput" list="categoryList" placeholder="例）TOEIC、動詞、四字熟語">
+          <datalist id="categoryList"></datalist>
+        </div>
+        <div class="tq-field">
+          <label class="tq-label">サブグループ（任意・ページやUnitなど／複数はカンマ区切り）</label>
+          <input class="tq-input" id="subgroupInput" list="subgroupList" placeholder="例）p.12　複数なら p.12, p.31">
+          <datalist id="subgroupList"></datalist>
+        </div>
+        <div class="tq-error" id="formError"></div>
+        <div class="tq-form-actions">
+          <button class="tq-btn" type="submit" id="addFormSubmitBtn">追加する</button>
+          <button class="tq-btn tq-btn-ghost hidden" type="button" id="cancelEditBtn">編集をやめる</button>
+        </div>
+        <div class="tq-save-error" id="saveError"></div>
+      </form>
+
+      <div class="tq-list-title">
+        <span>登録した単語</span>
+        <span id="countLabel">0件</span>
+      </div>
+      <div class="tq-empty" id="emptyList">まだ単語がないっす。上のフォームから登録してほしいっす</div>
+      <ul class="tq-list" id="wordList"></ul>
+    </div>
+
+    <!-- クイズ画面 -->
+    <div id="quizView" class="hidden">
+      <div class="tq-weak-row"><button class="tq-mode-btn" type="button" id="weakBtn">🔁 苦手だけ</button></div>
+      <div class="tq-category-filter hidden" id="categoryFilterWrap">
+        <div class="tq-filter-row">
+          <div>
+            <label class="tq-label" for="categorySelect">カテゴリーで絞り込む</label>
+            <select class="tq-select" id="categorySelect">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="hidden" id="subgroupFilterWrap">
+            <label class="tq-label" for="subgroupSelect">サブグループ</label>
+            <select class="tq-select" id="subgroupSelect">
+              <option value="">すべて</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="tq-card" id="quizNoWords">
+        <div class="tq-empty" id="quizNoWordsText">単語を登録したらクイズが始められるっす</div>
+      </div>
+      <div class="tq-card hidden" id="quizCard">
+        <div class="tq-quiz-header">
+          <div class="tq-quiz-q">この意味・ヒントに当てはまる単語は？</div>
+          <div class="tq-mode-toggle" id="modeToggle">
+            <button class="tq-mode-btn active" type="button" id="modeInputBtn">入力</button>
+            <button class="tq-mode-btn" type="button" id="modeChoiceBtn">4択</button>
+          </div>
+        </div>
+        <div class="tq-progress" id="quizProgress"></div>
+        <p class="tq-quiz-hint" id="quizHint"></p>
+
+        <form class="tq-quiz-row" id="answerForm">
+          <input class="tq-input" id="answerInput" placeholder="答えを入力">
+          <button class="tq-btn" type="submit" id="answerBtn">答える</button>
+        </form>
+
+        <div class="tq-choices hidden" id="choiceMode"></div>
+
+        <div class="tq-feedback" id="feedback"></div>
+        <div class="tq-next-row hidden" id="nextRow">
+          <button class="tq-speak tq-speak-quiz" type="button" id="speakQuizBtn" title="発音を聞く">🔊</button>
+          <button class="tq-btn tq-btn-ghost hidden" type="button" id="unsureBtn">🤔 うろ覚え</button>
+          <button class="tq-btn tq-btn-ghost" type="button" id="nextBtn">次へ</button>
+        </div>
+        <div class="tq-score" id="scoreLabel">正解数 0 / 0</div>
+      </div>
+      <div class="tq-card hidden" id="quizResult">
+        <div class="tq-quiz-q">結果発表っす！</div>
+        <p class="tq-result-text" id="quizResultText"></p>
+        <div class="tq-result-sub" id="quizResultSub"></div>
+        <div class="tq-result-actions">
+          <button class="tq-btn" type="button" id="restartQuizBtn">もう10問やる</button>
+          <button class="tq-btn tq-btn-ghost hidden" type="button" id="weakRestartBtn">🔁 苦手だけやる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA2ySQxuXoL3Vg-Fn8HKA_oyd1BHmqo03I",
+    authDomain: "dagashi-inventory.firebaseapp.com",
+    projectId: "dagashi-inventory",
+    storageBucket: "dagashi-inventory.firebasestorage.app",
+    messagingSenderId: "1038759847620",
+    appId: "1:1038759847620:web:15f8a008ff2ebfaf3b0b91"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const entriesCol = collection(db, 'tango-quiz-entries');
+
+  let entries = [];
+  let loaded = false;
+  let queue = [];
+  let current = null;
+  let feedbackShown = false;
+  let score = { correct: 0, total: 0 };
+
+  const tabRegister = document.getElementById('tabRegister');
+  const tabQuiz = document.getElementById('tabQuiz');
+  const registerView = document.getElementById('registerView');
+  const quizView = document.getElementById('quizView');
+  const addForm = document.getElementById('addForm');
+  const wordInput = document.getElementById('wordInput');
+  const hintInput = document.getElementById('hintInput');
+  const categoryInput = document.getElementById('categoryInput');
+  const categoryList = document.getElementById('categoryList');
+  const subgroupInput = document.getElementById('subgroupInput');
+  const subgroupList = document.getElementById('subgroupList');
+  const subgroupFilterWrap = document.getElementById('subgroupFilterWrap');
+  const subgroupSelect = document.getElementById('subgroupSelect');
+  const addFormSubmitBtn = document.getElementById('addFormSubmitBtn');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const categoryFilterWrap = document.getElementById('categoryFilterWrap');
+  const categorySelect = document.getElementById('categorySelect');
+  const formError = document.getElementById('formError');
+  const saveError = document.getElementById('saveError');
+  const countLabel = document.getElementById('countLabel');
+  const emptyList = document.getElementById('emptyList');
+  const wordList = document.getElementById('wordList');
+  const quizNoWords = document.getElementById('quizNoWords');
+  const quizNoWordsText = document.getElementById('quizNoWordsText');
+  const quizCard = document.getElementById('quizCard');
+  const quizResult = document.getElementById('quizResult');
+  const quizResultText = document.getElementById('quizResultText');
+  const restartQuizBtn = document.getElementById('restartQuizBtn');
+  const quizProgress = document.getElementById('quizProgress');
+  const quizHint = document.getElementById('quizHint');
+  const answerForm = document.getElementById('answerForm');
+  const answerInput = document.getElementById('answerInput');
+  const answerBtn = document.getElementById('answerBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const nextRow = document.getElementById('nextRow');
+  const speakQuizBtn = document.getElementById('speakQuizBtn');
+  const feedbackEl = document.getElementById('feedback');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const modeInputBtn = document.getElementById('modeInputBtn');
+  const modeChoiceBtn = document.getElementById('modeChoiceBtn');
+  const choiceModeDiv = document.getElementById('choiceMode');
+  const pcMain = document.getElementById('pcMain');
+  const pcToday = document.getElementById('pcToday');
+  const pcDone = document.getElementById('pcDone');
+  const pcGrow = document.getElementById('pcGrow');
+  const pcLegend = document.getElementById('pcLegend');
+  const weakBtn = document.getElementById('weakBtn');
+  const unsureBtn = document.getElementById('unsureBtn');
+  let lastResult = null;
+  const weakRestartBtn = document.getElementById('weakRestartBtn');
+  const quizResultSub = document.getElementById('quizResultSub');
+
+  let quizMode = localStorage.getItem('vocab-quiz-mode') === 'choice' ? 'choice' : 'input';
+  let editingId = null;
+  let selectedCategory = localStorage.getItem('vocab-quiz-category') || '';
+  let selectedSubgroup = localStorage.getItem('vocab-quiz-subgroup') || '';
+
+  // p.2 < p.10 のように数字を自然な順で並べる
+  function naturalSort(a, b) {
+    return a.localeCompare(b, 'ja', { numeric: true, sensitivity: 'base' });
+  }
+
+  // "p.12, p.31" や "p.12、p.31" を ["p.12", "p.31"] に分ける
+  function splitSubgroups(v) {
+    return Array.from(new Set(String(v || '').split(/[,、，]/).map((x) => x.trim()).filter(Boolean)));
+  }
+
+  function subgroupsFor(category) {
+    return Array.from(new Set(entries
+      .filter((it) => !category || (it.category || '') === category)
+      .flatMap((it) => splitSubgroups(it.subgroup)))).sort(naturalSort);
+  }
+  const QUIZ_LENGTH = 10;
+  let nextBtnMode = 'next';
+
+  const LEVEL_ICONS = ['🌱', '🌿', '🌳', '🌸'];
+  const MAX_LEVEL = 3;
+  let weakOnly = false;
+  let retried = new Set();
+  let masteredThisRound = 0;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function isWeak(it) { return (it.miss || 0) > 0 && (it.level || 0) < MAX_LEVEL; }
+
+  // カテゴリー・サブグループだけで絞った単語（4択の選択肢にも使う）
+  function baseEntries() {
+    return entries.filter((it) =>
+      (!selectedCategory || (it.category || '') === selectedCategory) &&
+      (!selectedSubgroup || splitSubgroups(it.subgroup).includes(selectedSubgroup)));
+  }
+
+  function filteredEntries() {
+    return weakOnly ? baseEntries().filter(isWeak) : baseEntries();
+  }
+
+  // 育ってない単語・間違えた単語ほど出やすい（ランダム性は残す）
+  function weightedOrder(arr) {
+    return arr
+      .map((it) => ({ it, k: Math.random() + (MAX_LEVEL - (it.level || 0)) * 0.5 + Math.min(it.miss || 0, 3) * 0.3 }))
+      .sort((a, b) => b.k - a.k)
+      .map((x) => x.it);
+  }
+
+  function todayKey() { return new Date().toLocaleDateString('sv-SE'); }
+  function loadToday() {
+    try {
+      const o = JSON.parse(lsGet('vocab-quiz-today') || 'null');
+      if (o && o.date === todayKey()) return o;
+    } catch (e) {}
+    return { date: todayKey(), total: 0, correct: 0 };
+  }
+
+  function confetti(n) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = document.createElement('canvas');
+    cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:999';
+    cv.width = window.innerWidth; cv.height = window.innerHeight;
+    document.body.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    const colors = ['#C88A1E', '#4C7A5D', '#B24C3C', '#2B2A28', '#E9B949'];
+    const ps = Array.from({ length: n }, () => ({
+      x: cv.width / 2 + (Math.random() - 0.5) * cv.width * 0.3, y: cv.height * 0.35,
+      vx: (Math.random() - 0.5) * 10, vy: -Math.random() * 10 - 3,
+      s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
+      c: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    let f = 0;
+    (function tick() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ps.forEach((p) => {
+        p.vy += 0.3; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+        ctx.restore();
+      });
+      f += 1;
+      if (f < 110) requestAnimationFrame(tick); else cv.remove();
+    })();
+  }
+
+  function renderProgress() {
+    const total = entries.length;
+    const lv = [0, 0, 0, 0];
+    entries.forEach((it) => { lv[Math.min(MAX_LEVEL, it.level || 0)] += 1; });
+    const done = lv[3];
+    const growing = lv[1] + lv[2];
+    pcMain.textContent = `🌸 定着 ${done}語 / ${total}語`;
+    pcDone.style.width = (total ? (done / total) * 100 : 0) + '%';
+    pcGrow.style.width = (total ? (growing / total) * 100 : 0) + '%';
+    pcLegend.textContent = `🌱 これから ${lv[0]}語　🌿 練習中 ${lv[1]}語　🌳 もうすぐ ${lv[2]}語`;
+    const t = loadToday();
+    pcToday.textContent = t.total > 0 ? `今日 ${t.total}問・${t.correct}正解` : '今日はこれから';
+    const weakCount = baseEntries().filter(isWeak).length;
+    weakBtn.textContent = `🔁 苦手だけ（${weakCount}）`;
+    weakBtn.classList.toggle('active', weakOnly);
+    weakBtn.disabled = weakCount === 0 && !weakOnly;
+  }
+
+  function speak(text) {
+    if (!('speechSynthesis' in window) || !text) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-US';
+    utter.rate = 0.9;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function renderList() {
+    countLabel.textContent = entries.length + '件';
+    wordList.innerHTML = '';
+    emptyList.style.display = entries.length === 0 ? 'block' : 'none';
+    entries.forEach((it) => {
+      const li = document.createElement('li');
+      const top = document.createElement('div');
+      top.className = 'tq-item-top';
+      const wordSpan = document.createElement('span');
+      wordSpan.className = 'tq-word';
+      wordSpan.textContent = it.word;
+      top.appendChild(wordSpan);
+      const lvSpan = document.createElement('span');
+      lvSpan.className = 'tq-lv';
+      lvSpan.textContent = LEVEL_ICONS[Math.min(MAX_LEVEL, it.level || 0)];
+      lvSpan.title = ['これから', '練習中', 'もうすぐ', '定着'][Math.min(MAX_LEVEL, it.level || 0)];
+      top.appendChild(lvSpan);
+      if (it.category) {
+        const catTag = document.createElement('span');
+        catTag.className = 'tq-category-tag';
+        catTag.textContent = it.category;
+        top.appendChild(catTag);
+      }
+      splitSubgroups(it.subgroup).forEach((sg) => {
+        const subTag = document.createElement('span');
+        subTag.className = 'tq-subgroup-tag';
+        subTag.textContent = sg;
+        top.appendChild(subTag);
+      });
+      const actions = document.createElement('span');
+      actions.className = 'tq-item-actions';
+      const speakBtn = document.createElement('button');
+      speakBtn.className = 'tq-speak';
+      speakBtn.type = 'button';
+      speakBtn.textContent = '🔊';
+      speakBtn.title = '発音を聞く';
+      speakBtn.onclick = () => speak(it.word);
+      const editBtn = document.createElement('button');
+      editBtn.className = 'tq-edit';
+      editBtn.type = 'button';
+      editBtn.textContent = '編集';
+      editBtn.onclick = () => startEdit(it);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'tq-del';
+      delBtn.textContent = '削除';
+      delBtn.onclick = () => removeEntry(it.id);
+      actions.appendChild(speakBtn);
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      top.appendChild(actions);
+      const hintSpan = document.createElement('div');
+      hintSpan.className = 'tq-hint';
+      hintSpan.textContent = it.hint;
+      li.appendChild(top);
+      li.appendChild(hintSpan);
+      wordList.appendChild(li);
+    });
+    tabQuiz.disabled = entries.length === 0;
+    if (modeChoiceBtn) {
+      const poolSize = baseEntries().length;
+      modeChoiceBtn.disabled = poolSize < 2;
+      if (poolSize < 2 && quizMode === 'choice') {
+        quizMode = 'input';
+        localStorage.setItem('vocab-quiz-mode', 'input');
+      }
+    }
+
+    const categories = Array.from(new Set(entries.map((it) => it.category).filter(Boolean))).sort();
+    categoryList.innerHTML = '';
+    categories.forEach((cat) => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      categoryList.appendChild(opt);
+    });
+
+    if (categories.length > 0) {
+      categoryFilterWrap.classList.remove('hidden');
+      if (selectedCategory && !categories.includes(selectedCategory)) {
+        selectedCategory = '';
+        localStorage.setItem('vocab-quiz-category', '');
+      }
+      categorySelect.innerHTML = '<option value="">すべて</option>';
+      categories.forEach((cat) => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        if (cat === selectedCategory) opt.selected = true;
+        categorySelect.appendChild(opt);
+      });
+    } else {
+      categoryFilterWrap.classList.add('hidden');
+      if (selectedCategory) {
+        selectedCategory = '';
+        localStorage.setItem('vocab-quiz-category', '');
+      }
+    }
+    renderSubgroupControls();
+    renderProgress();
+  }
+
+  function renderSubgroupControls() {
+    // 登録フォームの候補：入力中のカテゴリーのサブグループを優先
+    subgroupList.innerHTML = '';
+    subgroupsFor(categoryInput.value.trim()).forEach((sg) => {
+      const opt = document.createElement('option');
+      opt.value = sg;
+      subgroupList.appendChild(opt);
+    });
+
+    // クイズの絞り込み：選択中カテゴリーのサブグループ
+    const subs = subgroupsFor(selectedCategory);
+    if (selectedSubgroup && !subs.includes(selectedSubgroup)) {
+      selectedSubgroup = '';
+      localStorage.setItem('vocab-quiz-subgroup', '');
+    }
+    if (subs.length > 0) {
+      subgroupFilterWrap.classList.remove('hidden');
+      subgroupSelect.innerHTML = '<option value="">すべて</option>';
+      subs.forEach((sg) => {
+        const opt = document.createElement('option');
+        opt.value = sg;
+        opt.textContent = sg;
+        if (sg === selectedSubgroup) opt.selected = true;
+        subgroupSelect.appendChild(opt);
+      });
+    } else {
+      subgroupFilterWrap.classList.add('hidden');
+    }
+  }
+
+  categoryInput.addEventListener('input', renderSubgroupControls);
+
+  function startEdit(it) {
+    editingId = it.id;
+    wordInput.value = it.word;
+    hintInput.value = it.hint;
+    categoryInput.value = it.category || '';
+    subgroupInput.value = it.subgroup || '';
+    addFormSubmitBtn.textContent = '更新する';
+    cancelEditBtn.classList.remove('hidden');
+    formError.style.display = 'none';
+    wordInput.focus();
+    tabRegister.click();
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    wordInput.value = '';
+    hintInput.value = '';
+    categoryInput.value = '';
+    subgroupInput.value = '';
+    addFormSubmitBtn.textContent = '追加する';
+    cancelEditBtn.classList.add('hidden');
+    formError.style.display = 'none';
+  }
+
+  cancelEditBtn.addEventListener('click', cancelEdit);
+
+  categorySelect.addEventListener('change', () => {
+    selectedCategory = categorySelect.value;
+    localStorage.setItem('vocab-quiz-category', selectedCategory);
+    selectedSubgroup = '';
+    localStorage.setItem('vocab-quiz-subgroup', '');
+    renderList();
+    if (!quizView.classList.contains('hidden')) {
+      startQuiz();
+    }
+  });
+
+  subgroupSelect.addEventListener('change', () => {
+    selectedSubgroup = subgroupSelect.value;
+    localStorage.setItem('vocab-quiz-subgroup', selectedSubgroup);
+    renderList();
+    if (!quizView.classList.contains('hidden')) {
+      startQuiz();
+    }
+  });
+
+  function removeEntry(id) {
+    deleteDoc(doc(db, 'tango-quiz-entries', id)).catch(() => {
+      saveError.textContent = '削除でエラーが出たっす、もう一回試してみてほしいっす';
+      saveError.style.display = 'block';
+    });
+    queue = queue.filter((it) => it.id !== id);
+    if (current && current.id === id) {
+      current = null;
+      quizCard.classList.add('hidden');
+      quizNoWords.classList.remove('hidden');
+    }
+    if (editingId === id) {
+      cancelEdit();
+    }
+  }
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const w = wordInput.value.trim();
+    const h = hintInput.value.trim();
+    const c = categoryInput.value.trim();
+    const sg = splitSubgroups(subgroupInput.value).sort(naturalSort).join(', ');
+    formError.style.display = 'none';
+    if (!w || !h) {
+      formError.textContent = '単語とヒント（意味）、両方書いてほしいっす';
+      formError.style.display = 'block';
+      return;
+    }
+    // 同じカテゴリー内でだけ重複チェック（TOEICと教科書の両方に同じ単語を入れられる）
+    if (entries.some((it) => it.word === w && (it.category || '') === c && it.id !== editingId)) {
+      formError.textContent = 'その単語、このカテゴリーにもう登録済みっす';
+      formError.style.display = 'block';
+      return;
+    }
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, 'tango-quiz-entries', editingId), { word: w, hint: h, category: c, subgroup: sg });
+      } else {
+        await addDoc(entriesCol, { word: w, hint: h, category: c, subgroup: sg, createdAt: Date.now() });
+      }
+      saveError.style.display = 'none';
+      cancelEdit();
+    } catch (err) {
+      saveError.textContent = '保存でエラー出たっす、ネットワークとか見直してみてほしいっす';
+      saveError.style.display = 'block';
+    }
+  });
+
+  onSnapshot(entriesCol, (snapshot) => {
+    entries = snapshot.docs.map((d) => ({ id: d.id, word: d.data().word, hint: d.data().hint, category: d.data().category || '', subgroup: d.data().subgroup || '', level: Number(d.data().level) || 0, miss: Number(d.data().miss) || 0 }));
+    loaded = true;
+    renderList();
+  }, () => {
+    loaded = true;
+    saveError.textContent = 'データの取得でエラーが出たっす';
+    saveError.style.display = 'block';
+  });
+
+  function switchTab(tab) {
+    if (tab === 'register') {
+      tabRegister.classList.add('active');
+      tabQuiz.classList.remove('active');
+      registerView.classList.remove('hidden');
+      quizView.classList.add('hidden');
+    } else {
+      if (entries.length === 0) return;
+      tabQuiz.classList.add('active');
+      tabRegister.classList.remove('active');
+      registerView.classList.add('hidden');
+      quizView.classList.remove('hidden');
+      startQuiz();
+    }
+  }
+
+  tabRegister.addEventListener('click', () => switchTab('register'));
+  tabQuiz.addEventListener('click', () => switchTab('quiz'));
+
+  function startQuiz() {
+    const pool = filteredEntries();
+    quizResult.classList.add('hidden');
+    if (pool.length === 0) {
+      quizCard.classList.add('hidden');
+      quizNoWordsText.textContent = weakOnly
+        ? '苦手な単語はもうないっす。いい調子っす！'
+        : (selectedCategory || selectedSubgroup)
+          ? 'この絞り込みには単語がないっす'
+          : '単語を登録したらクイズが始められるっす';
+      quizNoWords.classList.remove('hidden');
+      current = null;
+      return;
+    }
+    quizNoWords.classList.add('hidden');
+    quizCard.classList.remove('hidden');
+    const q = weightedOrder(pool);
+    current = q[0];
+    queue = q.slice(1);
+    score = { correct: 0, total: 0 };
+    retried = new Set();
+    masteredThisRound = 0;
+    showQuestion();
+  }
+
+  function nextQuestion() {
+    const pool = filteredEntries();
+    if (pool.length === 0) { startQuiz(); return; }
+    // 絞り込みから外れた単語は出さない
+    queue = queue.filter((it) => pool.some((p) => p.id === it.id));
+    if (queue.length === 0) queue = weightedOrder(pool);
+    current = queue[0];
+    queue = queue.slice(1);
+    showQuestion();
+  }
+
+  function applyModeUI() {
+    modeInputBtn.classList.toggle('active', quizMode === 'input');
+    modeChoiceBtn.classList.toggle('active', quizMode === 'choice');
+    answerForm.classList.toggle('hidden', quizMode !== 'input');
+    choiceModeDiv.classList.toggle('hidden', quizMode !== 'choice');
+  }
+
+  function buildChoices() {
+    choiceModeDiv.innerHTML = '';
+    const others = baseEntries().filter((it) => it.id !== current.id);
+    const distractors = shuffle(others).slice(0, 3).map((it) => it.word);
+    const options = shuffle([current.word, ...distractors]);
+    options.forEach((word) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tq-choice-btn';
+      btn.textContent = word;
+      btn.addEventListener('click', () => selectChoice(word, btn));
+      choiceModeDiv.appendChild(btn);
+    });
+  }
+
+  function showQuestion() {
+    quizProgress.textContent = `第${score.total + 1}問 / ${QUIZ_LENGTH}問`;
+    quizHint.textContent = current.hint;
+    answerInput.value = '';
+    answerInput.disabled = false;
+    feedbackEl.style.display = 'none';
+    feedbackShown = false;
+    answerBtn.classList.remove('hidden');
+    nextRow.classList.add('hidden');
+    applyModeUI();
+    if (quizMode === 'choice') {
+      buildChoices();
+    } else {
+      setTimeout(() => answerInput.focus(), 0);
+    }
+    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
+  }
+
+  function finishQuestion(isCorrect, correctText) {
+    score.total += 1;
+    if (isCorrect) score.correct += 1;
+    feedbackShown = true;
+    feedbackEl.className = 'tq-feedback ' + (isCorrect ? 'correct' : 'wrong');
+    const e = entries.find((x) => x.id === current.id) || current;
+    const oldLevel = Math.min(MAX_LEVEL, e.level || 0);
+    const oldMiss = e.miss || 0;
+    let newLevel = oldLevel;
+    let newMiss = oldMiss;
+    let msg;
+    if (isCorrect) {
+      newLevel = Math.min(MAX_LEVEL, oldLevel + 1);
+      msg = '正解っす！';
+      if (newLevel > oldLevel) msg += ` ${LEVEL_ICONS[oldLevel]} → ${LEVEL_ICONS[newLevel]}`;
+      if (newLevel === MAX_LEVEL && oldLevel < MAX_LEVEL) {
+        msg += ' 定着したっす！';
+        masteredThisRound += 1;
+        confetti(40);
+      }
+    } else {
+      newMiss = oldMiss + 1;
+      msg = `不正解っす。正解は「${correctText}」`;
+      if (!retried.has(current.id)) {
+        retried.add(current.id);
+        queue.splice(Math.min(2, queue.length), 0, current);
+        msg += '　あとでもう一回出すっす';
+      }
+    }
+    if (newLevel !== oldLevel || newMiss !== oldMiss) {
+      e.level = newLevel; e.miss = newMiss;
+      updateDoc(doc(db, 'tango-quiz-entries', e.id), { level: newLevel, miss: newMiss }).catch(() => {});
+    }
+    lastResult = { id: e.id, oldLevel, oldMiss, newLevel, isCorrect };
+    unsureBtn.classList.toggle('hidden', !isCorrect);
+    unsureBtn.disabled = false;
+    const t = loadToday();
+    t.total += 1;
+    if (isCorrect) t.correct += 1;
+    lsSet('vocab-quiz-today', JSON.stringify(t));
+    renderProgress();
+    feedbackEl.textContent = msg;
+    feedbackEl.style.display = 'block';
+    nextRow.classList.remove('hidden');
+    if (score.total >= QUIZ_LENGTH) {
+      nextBtnMode = 'result';
+      nextBtn.textContent = '結果を見る';
+    } else {
+      nextBtnMode = 'next';
+      nextBtn.textContent = '次へ';
+    }
+    scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
+    speak(correctText);
+  }
+
+  answerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!current || feedbackShown) return;
+    const norm = (s) => s.trim().toLowerCase();
+    const isCorrect = answerInput.value.trim() !== '' && norm(answerInput.value) === norm(current.word);
+    answerInput.disabled = true;
+    answerBtn.classList.add('hidden');
+    finishQuestion(isCorrect, current.word);
+  });
+
+  function selectChoice(word, btnEl) {
+    if (!current || feedbackShown) return;
+    const isCorrect = word === current.word;
+    Array.from(choiceModeDiv.children).forEach((btn) => {
+      btn.disabled = true;
+      if (btn.textContent === current.word) btn.classList.add('correct');
+      else if (btn === btnEl) btn.classList.add('wrong');
+    });
+    finishQuestion(isCorrect, current.word);
+  }
+
+  modeInputBtn.addEventListener('click', () => {
+    if (quizMode === 'input') return;
+    quizMode = 'input';
+    localStorage.setItem('vocab-quiz-mode', 'input');
+    if (current) showQuestion();
+  });
+
+  modeChoiceBtn.addEventListener('click', () => {
+    if (quizMode === 'choice' || modeChoiceBtn.disabled) return;
+    quizMode = 'choice';
+    localStorage.setItem('vocab-quiz-mode', 'choice');
+    if (current) showQuestion();
+  });
+
+  function showResult() {
+    quizCard.classList.add('hidden');
+    quizResultText.textContent = `${QUIZ_LENGTH}問中 ${score.correct}問正解っす！`;
+    const c = score.correct;
+    const lines = [];
+    if (c === QUIZ_LENGTH) lines.push('全問正解っす、お見事！');
+    else if (c >= 7) lines.push('いい感じっす！');
+    else if (c >= 4) lines.push('着実に積み上がってるっす。');
+    else lines.push('間違えた単語は次から出やすくなるっす。ここから伸びるっす。');
+    const lastRaw = lsGet('vocab-quiz-last');
+    if (lastRaw !== null && c > Number(lastRaw)) lines.push(`前回より${c - Number(lastRaw)}問アップっす！`);
+    if (masteredThisRound > 0) lines.push(`今回 ${masteredThisRound}語が定着したっす 🌸`);
+    lsSet('vocab-quiz-last', String(c));
+    const weakCount = baseEntries().filter(isWeak).length;
+    if (weakCount > 0) lines.push(`苦手な単語は ${weakCount}語。ここだけ集中するのもありっす。`);
+    quizResultSub.textContent = lines.join('\n');
+    weakRestartBtn.classList.toggle('hidden', weakCount === 0 || weakOnly);
+    renderProgress();
+    quizResult.classList.remove('hidden');
+    confetti(c === QUIZ_LENGTH ? 160 : 50);
+  }
+
+  nextBtn.addEventListener('click', () => {
+    if (nextBtnMode === 'result') {
+      showResult();
+    } else {
+      nextQuestion();
+    }
+  });
+  restartQuizBtn.addEventListener('click', startQuiz);
+  unsureBtn.addEventListener('click', () => {
+    if (!lastResult || !lastResult.isCorrect) return;
+    const e = entries.find((x) => x.id === lastResult.id);
+    if (!e) return;
+    const r = lastResult;
+    // 正解で上がった分を取り消して、苦手リストに入れる
+    if (r.newLevel === MAX_LEVEL && r.oldLevel < MAX_LEVEL && masteredThisRound > 0) masteredThisRound -= 1;
+    e.level = r.oldLevel;
+    e.miss = r.oldMiss + 1;
+    updateDoc(doc(db, 'tango-quiz-entries', e.id), { level: e.level, miss: e.miss }).catch(() => {});
+    if (!retried.has(e.id)) {
+      retried.add(e.id);
+      queue.splice(Math.min(2, queue.length), 0, e);
+    }
+    lastResult.isCorrect = false;
+    unsureBtn.classList.add('hidden');
+    feedbackEl.textContent = '🤔 うろ覚えにしたっす。苦手リストに入れて、あとでもう一回出すっす';
+    renderProgress();
+  });
+  weakBtn.addEventListener('click', () => {
+    weakOnly = !weakOnly;
+    renderList();
+    startQuiz();
+  });
+  weakRestartBtn.addEventListener('click', () => {
+    weakOnly = true;
+    renderList();
+    startQuiz();
+  });
+  speakQuizBtn.addEventListener('click', () => { if (current) speak(current.word); });
+</script>
+</body>
+</html>
