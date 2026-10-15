@@ -809,6 +809,33 @@
         { n: "Oh, I see. That's a pity.", nj: 'そうですか。残念です。', q: '伝言を預かろうか聞いてみよう', c: 'Can I take a message?', w: ['Can I cancel a message?', 'Can I hire a message?'], cj: '伝言を預かりましょうか？', k: ['Can I take a message?'] },
         { n: 'Could you tell him to call me back? My number is 555-0123.', nj: '折り返し電話するよう伝えてもらえますか？ 番号は555-0123です。', q: '了解して、伝えておくと答えよう', c: "Certainly. I'll tell him to call you back.", w: ["Certainly. I'll tell him to deliver you back.", "Certainly. I'll tell him to review you back."], cj: 'かしこまりました。折り返すよう伝えます。', k: ['Could you tell him to ～？'] },
         { n: 'Also, could we reschedule tomorrow’s meeting?', nj: 'それと、明日の会議を変更できますか？', q: '予定を確認してから連絡すると答えよう', c: "Sure. I'll check his schedule and get back to you.", w: ["Sure. I'll check his warranty and get back to you.", "Sure. I'll check his invoice and get back to you."], cj: 'はい。彼の予定を確認して折り返します。', k: ['reschedule', 'schedule'] }
+      ] },
+    { id: 'shop1', icon: '🛍️', title: 'お店：海外のお客さん接客', intro: '出町ガジェットに外国のお客さんが来店！',
+      steps: [
+        { n: 'Hi! Where can I find the candy?', nj: 'こんにちは！お菓子はどこにありますか？', q: 'Bの通路にあると案内しよう', c: 'The candy? It\'s in aisle B.', w: ['The candy? It\'s in the warranty.', 'The candy? It\'s in the merger.'], cj: 'お菓子ですか？Bの通路にあります。', k: ["It's in aisle B"] },
+        { n: 'Do you have more of this one in stock?', nj: 'これの在庫、まだありますか？', q: '在庫を確認すると伝えよう', c: 'Let me check our inventory. One moment, please.', w: ['Let me check our merger. One moment, please.', 'Let me resign our inventory. One moment, please.'], cj: '在庫を確認します。少々お待ちください。', k: ['inventory', 'One moment, please.'] },
+        { n: "What if it doesn't work when I get home?", nj: '家に帰って動かなかったらどうなりますか？', q: '保証が付いていると安心させよう', c: "Don't worry. It comes with a one-year warranty.", w: ["Don't worry. It comes with a one-year deadline.", "Don't worry. It comes with a one-year competitor."], cj: 'ご心配なく。1年保証が付いています。', k: ['warranty'] },
+        { n: 'Can I pay by card? I also need a tax-free form.', nj: 'カードで払えますか？免税の書類も必要です。', q: '了承して、領収書を渡そう', c: 'Of course. Here is your receipt.', w: ['Of course. Here is your resume.', 'Of course. Here is your venue.'], cj: 'もちろんです。こちらが領収書です。', k: ['receipt'] }
+      ] },
+    { id: 'shop2', icon: '📦', title: 'お店：仕入れ先とやり取り', intro: '見積もり→納品→遅延→請求書までのメール・電話',
+      steps: [
+        { n: 'Thank you for your inquiry about our new products.', nj: '新製品へのお問い合わせありがとうございます。', q: '100個の見積もりをお願いしよう', c: 'Could you send me a quote for 100 pieces?', w: ['Could you send me a graffiti for 100 pieces?', 'Could you send me a resign for 100 pieces?'], cj: '100個の見積もりを送ってもらえますか？', k: ['inquiry', 'quote'] },
+        { n: 'The unit price is 300 yen. We can deliver within a week.', nj: '単価は300円です。1週間以内にお届けできます。', q: '金曜までに届けてほしいと伝えよう', c: 'That works. Please deliver them by Friday.', w: ['That works. Please resign them by Friday.', 'That works. Please attend them by Friday.'], cj: 'それでお願いします。金曜までに届けてください。', k: ['deliver'] },
+        { n: "I'm afraid there will be a delay with the shipment.", nj: '申し訳ありませんが、発送が遅れそうです。', q: '遅れはどれくらいか、急ぎの注文だと伝えよう', c: 'How long is the delay? This is an urgent order.', w: ['How long is the delay? This is a complimentary order.', 'How long is the delay? This is a subsidiary order.'], cj: '遅れはどれくらいですか？急ぎの注文です。', k: ['delay', 'shipment', 'urgent'] },
+        { n: 'When you receive the goods, we will send the invoice.', nj: '商品がお手元に届いたら、請求書をお送りします。', q: 'メールで送ってもらい、期限までに払うと伝えよう', c: "Please send the invoice by email. I'll pay by the deadline.", w: ["Please send the invoice by email. I'll resign by the deadline.", "Please send the invoice by email. I'll renovate by the deadline."], cj: '請求書はメールで送ってください。期限までに支払います。', k: ['invoice', 'deadline'] }
+      ] },
+    { id: 'shop3', icon: '🙇', title: 'お店：クレーム・返品対応', intro: '買ったランプがつかない…と言われたら',
+      steps: [
+        { n: "Excuse me, I have a complaint. The lamp I bought yesterday doesn't turn on.", nj: 'すみません、苦情があります。昨日買ったランプがつきません。', q: 'お詫びして、確認すると伝えよう', c: "I'm sorry to hear that. Let me take a look.", w: ["I'm glad to hear that. Let me promote it.", "I'm sorry to hear that. Let me resign it."], cj: 'それは申し訳ありません。確認させてください。', k: ['complaint'] },
+        { n: 'Is it broken?', nj: '壊れているんですか？', q: '不良品のようだと伝え、交換を提案しよう', c: 'Yes, it seems defective. I can offer a replacement.', w: ['Yes, it seems eligible. I can offer a replacement.', 'Yes, it seems defective. I can offer a competitor.'], cj: 'はい、不良品のようです。交換できます。', k: ['defective', 'replacement'] },
+        { n: "I'd rather have my money back.", nj: '交換より、お金を返してほしいです。', q: '全額返金すると伝えよう', c: "Certainly. We'll refund the full amount.", w: ["Certainly. We'll appoint the full amount.", "Certainly. We'll renovate the full amount."], cj: '承知しました。全額を返金します。', k: ['refund'] },
+        { n: 'Do you need anything from me?', nj: '私のほうで必要なものはありますか？', q: '用紙の記入と領収書をお願いしよう', c: 'Please fill out this form and show me your receipt.', w: ['Please fill out this form and show me your resume.', 'Please fill out this form and show me your venue.'], cj: 'この用紙に記入して、領収書を見せてください。', k: ['fill out', 'receipt'] }
+      ] },
+    { id: 'shop4', icon: '🚶', title: 'お店：店の前で道案内', intro: 'お店の前で観光のお客さんに聞かれたら',
+      steps: [
+        { n: 'Excuse me, where is the post office?', nj: 'すみません、郵便局はどこですか？', q: 'カフェの隣だと教えよう', c: "It's next to the cafe, across the street.", w: ["It's next to the interest rates, across the street.", "It's next to the executive, across the street."], cj: 'カフェの隣で、道の向かいです。', k: ['next to the cafe'] },
+        { n: 'And the bakery?', nj: 'パン屋さんは？', q: '銀行と花屋の間だと教えよう', c: "It's between the bank and the florist.", w: ["It's between the bank and the deadline.", "It's between the bank and the warranty."], cj: '銀行と花屋の間です。', k: ["It's between A and B"] },
+        { n: 'How can I get to Fushimi Inari? Is it far?', nj: '伏見稲荷へはどう行けばいいですか？遠いですか？', q: '電車で行けて、運賃は約200円と教えよう', c: 'Take the train. The fare is about two hundred yen.', w: ['Take the train. The warranty is about two hundred yen.', 'Take the train. The agenda is about two hundred yen.'], cj: '電車で行けます。運賃は約200円です。', k: ['fare'] }
       ] }
   ];
   const sceneView = document.getElementById('sceneView');
