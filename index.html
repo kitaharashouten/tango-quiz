@@ -188,6 +188,16 @@
   .tq-scene-choices .tq-choice-btn { text-align: left; font-size: 15px; }
   .tq-scene-ja { margin-top: 6px; font-size: 13px; font-weight: 400; }
   .tq-scene-key { margin-top: 4px; font-size: 13px; font-weight: 700; }
+  .tq-header { flex-wrap: wrap; gap: 8px; }
+  .tq-tabs { flex-wrap: wrap; }
+  .tq-rh-desc { font-size: 13px; color: var(--ink-soft); margin: 6px 0 14px; line-height: 1.6; }
+  .tq-rh-go { margin-top: 16px; width: 100%; }
+  .tq-rh-word { font-family: 'Zen Maru Gothic', sans-serif; font-size: 34px; font-weight: 700; text-align: center; margin: 18px 0 6px; word-break: break-word; }
+  .tq-rh-mean { font-size: 18px; text-align: center; min-height: 28px; color: var(--ink-soft); }
+  .tq-rh-label { text-align: center; font-size: 18px; font-weight: 700; margin: 16px 0 12px; min-height: 28px; }
+  .tq-rh-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+  .tq-rh-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
+  .tq-rh-dot.on { background: var(--mustard); border-color: var(--mustard-deep); transform: scale(1.3); }
 </style>
 </head>
 <body>
@@ -198,6 +208,7 @@
         <button class="tq-tab active" id="tabRegister">登録</button>
         <button class="tq-tab" id="tabQuiz">クイズ</button>
         <button class="tq-tab" id="tabScene">🎭 場面</button>
+        <button class="tq-tab" id="tabRhythm">🎵 リズム</button>
       </div>
     </div>
 
@@ -313,6 +324,9 @@
 
     <div id="sceneView" class="hidden">
       <div class="tq-card" id="sceneBody"></div>
+    </div>
+    <div id="rhythmView" class="hidden">
+      <div class="tq-card" id="rhythmBody"></div>
     </div>
   </div>
 
@@ -965,7 +979,125 @@
     sceneBody.appendChild(row);
   }
 
+  // ===== 🎵 リズムモード =====
+  const rhythmView = document.getElementById('rhythmView');
+  const tabRhythm = document.getElementById('tabRhythm');
+  const rhythmBody = document.getElementById('rhythmBody');
+  const R_LABELS = ['👂 聞いて', '👂 聞いて', '🗣 言ってみて！', '🗣 言ってみて！', '💡 意味', '💡 意味', '🗣 もう一回！', '🗣 もう一回！'];
+  const R_COUNT = 8;
+  let rBpm = [60, 80, 100].includes(Number(lsGet('vocab-quiz-bpm'))) ? Number(lsGet('vocab-quiz-bpm')) : 80;
+  let rClick = lsGet('vocab-quiz-click') !== '0';
+  let rTimer = null, rQueue = [], rIdx = 0, rBeat = 0, rRunning = false, rAudio = null;
+
+  function rBeep(accent) {
+    if (!rClick) return;
+    try {
+      if (!rAudio) rAudio = new (window.AudioContext || window.webkitAudioContext)();
+      if (rAudio.state === 'suspended') rAudio.resume();
+      const o = rAudio.createOscillator(), g = rAudio.createGain();
+      o.frequency.value = accent ? 880 : 520; g.gain.value = 0.05;
+      o.connect(g); g.connect(rAudio.destination);
+      o.start(); o.stop(rAudio.currentTime + 0.05);
+    } catch (e) {}
+  }
+  function speakJa(text) {
+    if (!('speechSynthesis' in window) || !text) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text).slice(0, 40));
+    u.lang = 'ja-JP'; u.rate = 1.05;
+    window.speechSynthesis.speak(u);
+  }
+
+  function rhythmStop() {
+    rRunning = false;
+    if (rTimer) { clearTimeout(rTimer); rTimer = null; }
+    try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  function renderRhythmMenu() {
+    rhythmStop();
+    rhythmBody.textContent = '';
+    rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 リズム音読（約1分）'));
+    rhythmBody.appendChild(el('p', 'tq-rh-desc', '拍に合わせて「聞く → 言う → 意味 → もう一回言う」を、' + R_COUNT + '語ぶん流すっす。画面を見ながら声に出してね。苦手な単語が多めに出るっす。'));
+    const pool = baseEntries();
+    if (pool.length === 0) { rhythmBody.appendChild(el('div', 'tq-empty', '単語がないっす（カテゴリーの絞り込みを確認してね）')); return; }
+    rhythmBody.appendChild(el('div', 'tq-label', 'テンポ'));
+    const tempo = el('div', 'tq-mode-toggle');
+    [[60, 'ゆっくり'], [80, 'ふつう'], [100, 'はやい']].forEach(([v, t]) => {
+      const b = el('button', 'tq-mode-btn' + (rBpm === v ? ' active' : ''), t); b.type = 'button';
+      b.addEventListener('click', () => { rBpm = v; lsSet('vocab-quiz-bpm', String(v)); renderRhythmMenu(); });
+      tempo.appendChild(b);
+    });
+    rhythmBody.appendChild(tempo);
+    const ck = el('button', 'tq-mode-btn' + (rClick ? ' active' : ''), rClick ? '🔔 クリック音 ON' : '🔕 クリック音 OFF'); ck.type = 'button';
+    ck.style.marginTop = '10px';
+    ck.addEventListener('click', () => { rClick = !rClick; lsSet('vocab-quiz-click', rClick ? '1' : '0'); renderRhythmMenu(); });
+    rhythmBody.appendChild(ck);
+    const go = el('button', 'tq-btn tq-rh-go', '▶ スタート'); go.type = 'button';
+    go.addEventListener('click', rhythmStart);
+    rhythmBody.appendChild(go);
+  }
+
+  function rhythmStart() {
+    rQueue = weightedOrder(baseEntries().slice()).slice(0, R_COUNT);
+    if (rQueue.length === 0) return;
+    rIdx = 0; rBeat = 0; rRunning = true;
+    if (rClick) rBeep(true);
+    rhythmBody.textContent = '';
+    rhythmBody.appendChild(el('div', 'tq-scene-head', '🎵 リズム音読')); rhythmBody.lastChild.id = 'rhHead';
+    const w = el('div', 'tq-rh-word'); w.id = 'rhWord'; rhythmBody.appendChild(w);
+    const m = el('div', 'tq-rh-mean'); m.id = 'rhMean'; rhythmBody.appendChild(m);
+    const lb = el('div', 'tq-rh-label'); lb.id = 'rhLabel'; rhythmBody.appendChild(lb);
+    const dots = el('div', 'tq-rh-dots'); dots.id = 'rhDots';
+    for (let i = 0; i < 8; i++) dots.appendChild(el('span', 'tq-rh-dot'));
+    rhythmBody.appendChild(dots);
+    const stop = el('button', 'tq-btn tq-btn-ghost', '■ やめる'); stop.type = 'button';
+    stop.addEventListener('click', renderRhythmMenu);
+    rhythmBody.appendChild(stop);
+    rTick();
+  }
+
+  function rTick() {
+    if (!rRunning) return;
+    if (rIdx >= rQueue.length) { rhythmFinish(); return; }
+    const e = rQueue[rIdx];
+    document.getElementById('rhHead').textContent = '🎵 ' + (rIdx + 1) + ' / ' + rQueue.length;
+    document.getElementById('rhWord').textContent = e.word;
+    document.getElementById('rhMean').textContent = rBeat >= 4 ? e.hint : '？';
+    document.getElementById('rhLabel').textContent = R_LABELS[rBeat];
+    document.querySelectorAll('#rhDots .tq-rh-dot').forEach((d, i) => d.classList.toggle('on', i === rBeat));
+    rBeep(rBeat === 0);
+    if (rBeat === 0) speak(e.word);
+    if (rBeat === 4) speakJa(e.hint);
+    rBeat += 1;
+    if (rBeat >= 8) { rBeat = 0; rIdx += 1; }
+    rTimer = setTimeout(rTick, 60000 / rBpm);
+  }
+
+  function rhythmFinish() {
+    rhythmStop();
+    rhythmBody.textContent = '';
+    rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 おつかれさま！'));
+    rhythmBody.appendChild(el('p', 'tq-result-text', rQueue.length + '語、声に出したっす。耳と口で覚えた単語は、あとでクイズで確かめるとさらに定着するっす。'));
+    const row = el('div', 'tq-result-actions');
+    const again = el('button', 'tq-btn', 'もう一周'); again.type = 'button';
+    again.addEventListener('click', rhythmStart);
+    const back = el('button', 'tq-btn tq-btn-ghost', 'もどる'); back.type = 'button';
+    back.addEventListener('click', renderRhythmMenu);
+    row.appendChild(again); row.appendChild(back);
+    rhythmBody.appendChild(row);
+  }
+  tabRhythm.addEventListener('click', () => switchTab('rhythm'));
+
   function switchTab(tab) {
+    rhythmStop();
+    if (tab === 'rhythm') {
+      tabRhythm.classList.add('active'); tabRegister.classList.remove('active'); tabQuiz.classList.remove('active'); tabScene.classList.remove('active');
+      registerView.classList.add('hidden'); quizView.classList.add('hidden'); sceneView.classList.add('hidden'); rhythmView.classList.remove('hidden');
+      renderRhythmMenu();
+      return;
+    }
+    rhythmView.classList.add('hidden'); tabRhythm.classList.remove('active');
     if (tab === 'scene') {
       tabScene.classList.add('active'); tabRegister.classList.remove('active'); tabQuiz.classList.remove('active');
       registerView.classList.add('hidden'); quizView.classList.add('hidden'); sceneView.classList.remove('hidden');
