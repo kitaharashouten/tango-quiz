@@ -81,6 +81,12 @@
     font-size: 11px; padding: 2px 9px; border-radius: 999px;
     background: rgba(200,138,30,0.18); color: var(--mustard-deep); white-space: nowrap;
   }
+  .tq-subgroup-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: var(--sage-bg); color: var(--sage); white-space: nowrap;
+  }
+  .tq-filter-row { display: flex; gap: 8px; }
+  .tq-filter-row > div { flex: 1; min-width: 0; }
   .tq-hint {
     color: var(--ink-soft); font-size: 13px; margin-top: 4px;
     overflow: hidden; text-overflow: ellipsis;
@@ -173,6 +179,11 @@
           <input class="tq-input" id="categoryInput" list="categoryList" placeholder="例）TOEIC、動詞、四字熟語">
           <datalist id="categoryList"></datalist>
         </div>
+        <div class="tq-field">
+          <label class="tq-label">サブグループ（任意・ページやUnitなど）</label>
+          <input class="tq-input" id="subgroupInput" list="subgroupList" placeholder="例）p.12、Unit 3">
+          <datalist id="subgroupList"></datalist>
+        </div>
         <div class="tq-error" id="formError"></div>
         <div class="tq-form-actions">
           <button class="tq-btn" type="submit" id="addFormSubmitBtn">追加する</button>
@@ -192,10 +203,20 @@
     <!-- クイズ画面 -->
     <div id="quizView" class="hidden">
       <div class="tq-category-filter hidden" id="categoryFilterWrap">
-        <label class="tq-label" for="categorySelect">カテゴリーで絞り込む</label>
-        <select class="tq-select" id="categorySelect">
-          <option value="">すべて</option>
-        </select>
+        <div class="tq-filter-row">
+          <div>
+            <label class="tq-label" for="categorySelect">カテゴリーで絞り込む</label>
+            <select class="tq-select" id="categorySelect">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="hidden" id="subgroupFilterWrap">
+            <label class="tq-label" for="subgroupSelect">サブグループ</label>
+            <select class="tq-select" id="subgroupSelect">
+              <option value="">すべて</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="tq-card" id="quizNoWords">
         <div class="tq-empty" id="quizNoWordsText">単語を登録したらクイズが始められるっす</div>
@@ -265,6 +286,10 @@
   const hintInput = document.getElementById('hintInput');
   const categoryInput = document.getElementById('categoryInput');
   const categoryList = document.getElementById('categoryList');
+  const subgroupInput = document.getElementById('subgroupInput');
+  const subgroupList = document.getElementById('subgroupList');
+  const subgroupFilterWrap = document.getElementById('subgroupFilterWrap');
+  const subgroupSelect = document.getElementById('subgroupSelect');
   const addFormSubmitBtn = document.getElementById('addFormSubmitBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
   const categoryFilterWrap = document.getElementById('categoryFilterWrap');
@@ -297,12 +322,25 @@
   let quizMode = localStorage.getItem('vocab-quiz-mode') === 'choice' ? 'choice' : 'input';
   let editingId = null;
   let selectedCategory = localStorage.getItem('vocab-quiz-category') || '';
+  let selectedSubgroup = localStorage.getItem('vocab-quiz-subgroup') || '';
+
+  // p.2 < p.10 のように数字を自然な順で並べる
+  function naturalSort(a, b) {
+    return a.localeCompare(b, 'ja', { numeric: true, sensitivity: 'base' });
+  }
+
+  function subgroupsFor(category) {
+    return Array.from(new Set(entries
+      .filter((it) => !category || (it.category || '') === category)
+      .map((it) => it.subgroup).filter(Boolean))).sort(naturalSort);
+  }
   const QUIZ_LENGTH = 10;
   let nextBtnMode = 'next';
 
   function filteredEntries() {
-    if (!selectedCategory) return entries;
-    return entries.filter((it) => (it.category || '') === selectedCategory);
+    return entries.filter((it) =>
+      (!selectedCategory || (it.category || '') === selectedCategory) &&
+      (!selectedSubgroup || (it.subgroup || '') === selectedSubgroup));
   }
 
   function speak(text) {
@@ -340,6 +378,12 @@
         catTag.className = 'tq-category-tag';
         catTag.textContent = it.category;
         top.appendChild(catTag);
+      }
+      if (it.subgroup) {
+        const subTag = document.createElement('span');
+        subTag.className = 'tq-subgroup-tag';
+        subTag.textContent = it.subgroup;
+        top.appendChild(subTag);
       }
       const actions = document.createElement('span');
       actions.className = 'tq-item-actions';
@@ -408,13 +452,47 @@
         localStorage.setItem('vocab-quiz-category', '');
       }
     }
+    renderSubgroupControls();
   }
+
+  function renderSubgroupControls() {
+    // 登録フォームの候補：入力中のカテゴリーのサブグループを優先
+    subgroupList.innerHTML = '';
+    subgroupsFor(categoryInput.value.trim()).forEach((sg) => {
+      const opt = document.createElement('option');
+      opt.value = sg;
+      subgroupList.appendChild(opt);
+    });
+
+    // クイズの絞り込み：選択中カテゴリーのサブグループ
+    const subs = subgroupsFor(selectedCategory);
+    if (selectedSubgroup && !subs.includes(selectedSubgroup)) {
+      selectedSubgroup = '';
+      localStorage.setItem('vocab-quiz-subgroup', '');
+    }
+    if (subs.length > 0) {
+      subgroupFilterWrap.classList.remove('hidden');
+      subgroupSelect.innerHTML = '<option value="">すべて</option>';
+      subs.forEach((sg) => {
+        const opt = document.createElement('option');
+        opt.value = sg;
+        opt.textContent = sg;
+        if (sg === selectedSubgroup) opt.selected = true;
+        subgroupSelect.appendChild(opt);
+      });
+    } else {
+      subgroupFilterWrap.classList.add('hidden');
+    }
+  }
+
+  categoryInput.addEventListener('input', renderSubgroupControls);
 
   function startEdit(it) {
     editingId = it.id;
     wordInput.value = it.word;
     hintInput.value = it.hint;
     categoryInput.value = it.category || '';
+    subgroupInput.value = it.subgroup || '';
     addFormSubmitBtn.textContent = '更新する';
     cancelEditBtn.classList.remove('hidden');
     formError.style.display = 'none';
@@ -427,6 +505,7 @@
     wordInput.value = '';
     hintInput.value = '';
     categoryInput.value = '';
+    subgroupInput.value = '';
     addFormSubmitBtn.textContent = '追加する';
     cancelEditBtn.classList.add('hidden');
     formError.style.display = 'none';
@@ -437,6 +516,17 @@
   categorySelect.addEventListener('change', () => {
     selectedCategory = categorySelect.value;
     localStorage.setItem('vocab-quiz-category', selectedCategory);
+    selectedSubgroup = '';
+    localStorage.setItem('vocab-quiz-subgroup', '');
+    renderList();
+    if (!quizView.classList.contains('hidden')) {
+      startQuiz();
+    }
+  });
+
+  subgroupSelect.addEventListener('change', () => {
+    selectedSubgroup = subgroupSelect.value;
+    localStorage.setItem('vocab-quiz-subgroup', selectedSubgroup);
     renderList();
     if (!quizView.classList.contains('hidden')) {
       startQuiz();
@@ -464,22 +554,24 @@
     const w = wordInput.value.trim();
     const h = hintInput.value.trim();
     const c = categoryInput.value.trim();
+    const sg = subgroupInput.value.trim();
     formError.style.display = 'none';
     if (!w || !h) {
       formError.textContent = '単語とヒント（意味）、両方書いてほしいっす';
       formError.style.display = 'block';
       return;
     }
-    if (entries.some((it) => it.word === w && it.id !== editingId)) {
-      formError.textContent = 'その単語、もう登録済みっす';
+    // 同じカテゴリー内でだけ重複チェック（TOEICと教科書の両方に同じ単語を入れられる）
+    if (entries.some((it) => it.word === w && (it.category || '') === c && it.id !== editingId)) {
+      formError.textContent = 'その単語、このカテゴリーにもう登録済みっす';
       formError.style.display = 'block';
       return;
     }
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'tango-quiz-entries', editingId), { word: w, hint: h, category: c });
+        await updateDoc(doc(db, 'tango-quiz-entries', editingId), { word: w, hint: h, category: c, subgroup: sg });
       } else {
-        await addDoc(entriesCol, { word: w, hint: h, category: c, createdAt: Date.now() });
+        await addDoc(entriesCol, { word: w, hint: h, category: c, subgroup: sg, createdAt: Date.now() });
       }
       saveError.style.display = 'none';
       cancelEdit();
@@ -490,7 +582,7 @@
   });
 
   onSnapshot(entriesCol, (snapshot) => {
-    entries = snapshot.docs.map((d) => ({ id: d.id, word: d.data().word, hint: d.data().hint, category: d.data().category || '' }));
+    entries = snapshot.docs.map((d) => ({ id: d.id, word: d.data().word, hint: d.data().hint, category: d.data().category || '', subgroup: d.data().subgroup || '' }));
     loaded = true;
     renderList();
   }, () => {
@@ -523,8 +615,8 @@
     quizResult.classList.add('hidden');
     if (pool.length === 0) {
       quizCard.classList.add('hidden');
-      quizNoWordsText.textContent = selectedCategory
-        ? 'このカテゴリーには単語がないっす'
+      quizNoWordsText.textContent = (selectedCategory || selectedSubgroup)
+        ? 'この絞り込みには単語がないっす'
         : '単語を登録したらクイズが始められるっす';
       quizNoWords.classList.remove('hidden');
       current = null;
