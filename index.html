@@ -75,7 +75,7 @@
     padding: 10px 0; border-bottom: 1px dashed var(--line);
   }
   .tq-list li:last-child { border-bottom: none; }
-  .tq-item-top { display: flex; align-items: center; gap: 8px; }
+  .tq-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .tq-word { font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; white-space: nowrap; }
   .tq-category-tag {
     font-size: 11px; padding: 2px 9px; border-radius: 999px;
@@ -180,8 +180,8 @@
           <datalist id="categoryList"></datalist>
         </div>
         <div class="tq-field">
-          <label class="tq-label">サブグループ（任意・ページやUnitなど）</label>
-          <input class="tq-input" id="subgroupInput" list="subgroupList" placeholder="例）p.12、Unit 3">
+          <label class="tq-label">サブグループ（任意・ページやUnitなど／複数はカンマ区切り）</label>
+          <input class="tq-input" id="subgroupInput" list="subgroupList" placeholder="例）p.12　複数なら p.12, p.31">
           <datalist id="subgroupList"></datalist>
         </div>
         <div class="tq-error" id="formError"></div>
@@ -329,10 +329,15 @@
     return a.localeCompare(b, 'ja', { numeric: true, sensitivity: 'base' });
   }
 
+  // "p.12, p.31" や "p.12、p.31" を ["p.12", "p.31"] に分ける
+  function splitSubgroups(v) {
+    return Array.from(new Set(String(v || '').split(/[,、，]/).map((x) => x.trim()).filter(Boolean)));
+  }
+
   function subgroupsFor(category) {
     return Array.from(new Set(entries
       .filter((it) => !category || (it.category || '') === category)
-      .map((it) => it.subgroup).filter(Boolean))).sort(naturalSort);
+      .flatMap((it) => splitSubgroups(it.subgroup)))).sort(naturalSort);
   }
   const QUIZ_LENGTH = 10;
   let nextBtnMode = 'next';
@@ -340,7 +345,7 @@
   function filteredEntries() {
     return entries.filter((it) =>
       (!selectedCategory || (it.category || '') === selectedCategory) &&
-      (!selectedSubgroup || (it.subgroup || '') === selectedSubgroup));
+      (!selectedSubgroup || splitSubgroups(it.subgroup).includes(selectedSubgroup)));
   }
 
   function speak(text) {
@@ -379,12 +384,12 @@
         catTag.textContent = it.category;
         top.appendChild(catTag);
       }
-      if (it.subgroup) {
+      splitSubgroups(it.subgroup).forEach((sg) => {
         const subTag = document.createElement('span');
         subTag.className = 'tq-subgroup-tag';
-        subTag.textContent = it.subgroup;
+        subTag.textContent = sg;
         top.appendChild(subTag);
-      }
+      });
       const actions = document.createElement('span');
       actions.className = 'tq-item-actions';
       const speakBtn = document.createElement('button');
@@ -554,7 +559,7 @@
     const w = wordInput.value.trim();
     const h = hintInput.value.trim();
     const c = categoryInput.value.trim();
-    const sg = subgroupInput.value.trim();
+    const sg = splitSubgroups(subgroupInput.value).sort(naturalSort).join(', ');
     formError.style.display = 'none';
     if (!w || !h) {
       formError.textContent = '単語とヒント（意味）、両方書いてほしいっす';
