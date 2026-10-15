@@ -1003,12 +1003,18 @@
   function rBeep(accent) {
     if (!rClick) return;
     try {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
       if (!rAudio) rAudio = new (window.AudioContext || window.webkitAudioContext)();
       if (rAudio.state === 'suspended') rAudio.resume();
+      const t0 = rAudio.currentTime;
       const o = rAudio.createOscillator(), g = rAudio.createGain();
-      o.frequency.value = accent ? 880 : 520; g.gain.value = 0.05;
+      o.type = 'triangle';
+      o.frequency.value = accent ? 1100 : 700;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(accent ? 0.6 : 0.4, t0 + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
       o.connect(g); g.connect(rAudio.destination);
-      o.start(); o.stop(rAudio.currentTime + 0.05);
+      o.start(t0); o.stop(t0 + 0.13);
     } catch (e) {}
   }
   function speakJa(text) {
@@ -1029,7 +1035,7 @@
     rhythmStop();
     rhythmBody.textContent = '';
     rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 リズム音読（約1分）'));
-    rhythmBody.appendChild(el('p', 'tq-rh-desc', '拍に合わせて「聞く → 言う → 意味 → もう一回言う」を、' + R_COUNT + '語ぶん流すっす。画面を見ながら声に出してね。苦手な単語が多めに出るっす。'));
+    rhythmBody.appendChild(el('p', 'tq-rh-desc', '拍に合わせて「聞く → 言う → 意味 → もう一回言う」を、' + R_COUNT + '語ぶん流すっす。画面を見ながら声に出してね。苦手な単語が多めに出るっす。クリック音が出ない時は、スマホのマナーモードを切って、音量を上げてね（🔔を押すと試し鳴りするっす）。'));
     const pool = baseEntries();
     if (pool.length === 0) { rhythmBody.appendChild(el('div', 'tq-empty', '単語がないっす（カテゴリーの絞り込みを確認してね）')); return; }
     rhythmBody.appendChild(el('div', 'tq-label', 'テンポ'));
@@ -1042,7 +1048,7 @@
     rhythmBody.appendChild(tempo);
     const ck = el('button', 'tq-mode-btn' + (rClick ? ' active' : ''), rClick ? '🔔 クリック音 ON' : '🔕 クリック音 OFF'); ck.type = 'button';
     ck.style.marginTop = '10px';
-    ck.addEventListener('click', () => { rClick = !rClick; lsSet('vocab-quiz-click', rClick ? '1' : '0'); renderRhythmMenu(); });
+    ck.addEventListener('click', () => { rClick = !rClick; lsSet('vocab-quiz-click', rClick ? '1' : '0'); if (rClick) rBeep(true); renderRhythmMenu(); });
     rhythmBody.appendChild(ck);
     const go = el('button', 'tq-btn tq-rh-go', '▶ スタート'); go.type = 'button';
     go.addEventListener('click', rhythmStart);
