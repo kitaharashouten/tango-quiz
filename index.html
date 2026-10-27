@@ -1002,7 +1002,7 @@
     fb.style.display = 'block';
     document.getElementById('sceneNext').classList.remove('hidden');
     bumpWords(st.k, ok);
-    if (autoRead) speakSeq([{ t: st.c, lang: 'en-US' }, { t: st.cj, lang: 'ja-JP' }]);
+    if (autoRead) speakSeq([{ t: st.c, lang: 'en-US' }]);
   }
 
   function renderSceneResult() {
@@ -1479,7 +1479,7 @@
     }
     scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
     if (autoRead) {
-      speakSeq([{ t: current.word, lang: 'en-US' }, { t: current.hint, lang: 'ja-JP' }, { t: current.ex, lang: 'en-US' }]);
+      speakSeq([{ t: current.word, lang: 'en-US' }]);
     }
   }
 
