@@ -207,6 +207,7 @@
   .tq-rh-tap { width: 100%; padding: 26px 12px; font-size: 20px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; border: 3px solid var(--ink); border-radius: 10px; background: rgba(200,138,30,0.18); color: var(--ink); cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   .tq-rh-tap.hit { background: var(--mustard); transform: scale(0.98); }
   .tq-rh-score { text-align: center; font-size: 14px; font-weight: 700; margin: 12px 0 14px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+  .tq-rh-sent { text-align: center; white-space: pre-line; font-size: 15px; line-height: 1.5; min-height: 4.6em; margin-bottom: 8px; color: var(--ink); }
 </style>
 </head>
 <body>
@@ -1008,7 +1009,7 @@
   let rBpm = [80, 100, 120].includes(Number(lsGet('vocab-quiz-bpm2'))) ? Number(lsGet('vocab-quiz-bpm2')) : 100;
   let rClick = lsGet('vocab-quiz-click') !== '0';
   let rCtx = null, rNoise = null, rTimer = null, rRunning = false;
-  let rQueue = [], rNext = 0, rNo = -4, rEvents = [], rTargets = [], rBeatTimes = {};
+  let rQueue = [], rPlan = [], rTotal = 0, rNext = 0, rNo = -4, rEvents = [], rTargets = [], rBeatTimes = {};
   let rScore = 0, rCombo = 0, rMaxCombo = 0, rStat = { perfect: 0, good: 0, miss: 0 };
 
   function rEnsureCtx() {
@@ -1073,7 +1074,7 @@
     rhythmStop();
     rhythmBody.textContent = '';
     rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 リズム音読バトル（約40秒）'));
-    rhythmBody.appendChild(el('p', 'tq-rh-desc', 'ビートに乗って、「聞く → 言う → 意味 → もう一回言う」を' + R_COUNT + '語ぶん。「言って！」の拍で、声に出しながら🥁をタップ。拍にぴったりだとPERFECT、連続するとコンボっす。苦手な単語が多めに出るっす。音が出ない時は、マナーモードを切って音量を上げてね。'));
+    rhythmBody.appendChild(el('p', 'tq-rh-desc', 'ビートに乗って、「聞く → 言う → 意味 → もう一回言う」を' + R_COUNT + '語ぶん。覚えにくい単語は文章つきで、聞いてから文ごと言うっす。「言って！」の拍で、声に出しながら🥁をタップ。拍にぴったりだとPERFECT、連続するとコンボっす。苦手な単語は、例文（文章）とセットで出るっす。音が出ない時は、マナーモードを切って音量を上げてね。'));
     const pool = baseEntries();
     if (pool.length === 0) { rhythmBody.appendChild(el('div', 'tq-empty', '単語がないっす（カテゴリーの絞り込みを確認してね）')); return; }
     rhythmBody.appendChild(el('div', 'tq-label', 'テンポ（BPM）'));
@@ -1100,6 +1101,15 @@
   function rhythmStart() {
     rQueue = weightedOrder(baseEntries().slice()).slice(0, R_COUNT);
     if (rQueue.length === 0) return;
+    let nSent = 0;
+    rPlan = []; rTotal = 0;
+    rQueue.forEach((e) => {
+      const sent = !!e.ex && nSent < 3 && (e.level <= 1 || e.miss >= 1);
+      if (sent) nSent += 1;
+      const len = sent ? 16 : 8;
+      rPlan.push({ e, start: rTotal, len, sent });
+      rTotal += len;
+    });
     try { rEnsureCtx(); } catch (e) { rCtx = null; }
     if (!rCtx) return;
     rScore = 0; rCombo = 0; rMaxCombo = 0; rStat = { perfect: 0, good: 0, miss: 0 };
@@ -1110,6 +1120,7 @@
     const head = el('div', 'tq-scene-head', '🎵'); head.id = 'rhHead'; rhythmBody.appendChild(head);
     const w = el('div', 'tq-rh-word'); w.id = 'rhWord'; rhythmBody.appendChild(w);
     const m = el('div', 'tq-rh-mean'); m.id = 'rhMean'; rhythmBody.appendChild(m);
+    const sn = el('div', 'tq-rh-sent'); sn.id = 'rhSent'; rhythmBody.appendChild(sn);
     const lb = el('div', 'tq-rh-label'); lb.id = 'rhLabel'; rhythmBody.appendChild(lb);
     const dots = el('div', 'tq-rh-dots'); dots.id = 'rhDots';
     for (let i = 0; i < 8; i++) dots.appendChild(el('span', 'tq-rh-dot'));
@@ -1136,16 +1147,24 @@
     j.textContent = text; j.className = 'tq-rh-judge ' + (cls || '');
   }
 
+  function rPlanAt(no) {
+    for (let i = 0; i < rPlan.length; i++) {
+      const p = rPlan[i];
+      if (no >= p.start && no < p.start + p.len) return { p, wi: i, b: no - p.start };
+    }
+    return null;
+  }
+
   function rPump() {
     if (!rRunning || !rCtx) return;
     const d = 60 / rBpm;
     const now = rCtx.currentTime;
-    while (rNext < now + 0.15 && rNo <= R_COUNT * 8) {
+    while (rNext < now + 0.15 && rNo <= rTotal) {
       rPlayBeat(rNo, rNext, d);
-      const bw = ((rNo % 8) + 8) % 8;
+      const at = rNo >= 0 && rNo < rTotal ? rPlanAt(rNo) : null;
       rBeatTimes[rNo] = rNext;
       rEvents.push({ no: rNo, t: rNext });
-      if (rNo >= 0 && rNo < R_COUNT * 8 && (bw === 2 || bw === 6)) rTargets.push({ no: rNo, t: rNext, done: false });
+      if (at && (at.p.sent ? [2, 10, 14] : [2, 6]).includes(at.b)) rTargets.push({ no: rNo, t: rNext, done: false });
       rNext += d; rNo += 1;
     }
     const lat = rCtx.outputLatency || rCtx.baseLatency || 0;
@@ -1158,7 +1177,7 @@
   function rFireBeat(ev) {
     if (!rRunning) return;
     const no = ev.no;
-    if (no >= R_COUNT * 8) { rhythmFinish(); return; }
+    if (no >= rTotal) { rhythmFinish(); return; }
     const lb = document.getElementById('rhLabel');
     if (!lb) return;
     if (no < 0) {
@@ -1169,15 +1188,25 @@
       document.querySelectorAll('#rhDots .tq-rh-dot').forEach((x) => x.classList.remove('on'));
       return;
     }
-    const wi = Math.floor(no / 8), b = no % 8, e = rQueue[wi];
-    document.getElementById('rhHead').textContent = '🎵 ' + (wi + 1) + ' / ' + rQueue.length;
+    const at = rPlanAt(no);
+    if (!at) return;
+    const { p, wi, b } = at, e = p.e;
+    document.getElementById('rhHead').textContent = '🎵 ' + (wi + 1) + ' / ' + rQueue.length + (p.sent ? '　📖 文つき' : '');
     document.getElementById('rhWord').textContent = e.word;
     document.getElementById('rhMean').textContent = b >= 4 ? e.hint : '？';
-    lb.textContent = R_LABELS[b];
-    lb.classList.toggle('say', b === 2 || b === 3 || b === 6 || b === 7);
-    document.querySelectorAll('#rhDots .tq-rh-dot').forEach((x, i) => x.classList.toggle('on', i === b));
+    const sn = document.getElementById('rhSent');
+    if (sn) sn.textContent = p.sent && b >= 6 ? e.ex + '\n' + e.exJa : '';
+    let say, label;
+    if (!p.sent) { say = b === 2 || b === 3 || b === 6 || b === 7; label = R_LABELS[b]; }
+    else if (b < 6) { say = b === 2 || b === 3; label = R_LABELS[b]; }
+    else if (b < 10) { say = false; label = '📖 文で聞いて'; }
+    else { say = true; label = '🗣 文で言って！'; }
+    lb.textContent = label;
+    lb.classList.toggle('say', say);
+    document.querySelectorAll('#rhDots .tq-rh-dot').forEach((x, i) => x.classList.toggle('on', i === b % 8));
     if (b === 0) speak(e.word);
     if (b === 4) speakJa(e.hint);
+    if (p.sent && b === 6) speak(e.ex);
   }
 
   function rResult(grade) {
