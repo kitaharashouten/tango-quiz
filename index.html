@@ -208,6 +208,8 @@
   .tq-rh-tap.hit { background: var(--mustard); transform: scale(0.98); }
   .tq-rh-score { text-align: center; font-size: 14px; font-weight: 700; margin: 12px 0 14px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
   .tq-rh-sent { text-align: center; white-space: pre-line; font-size: 15px; line-height: 1.5; min-height: 4.6em; margin-bottom: 8px; color: var(--ink); }
+  .tq-auto { display: block; margin: 8px 0 0 auto; padding: 4px 12px; font-size: 12px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; border: 2px solid var(--ink); border-radius: 999px; background: transparent; color: var(--ink-soft); cursor: pointer; }
+  .tq-auto.on { background: rgba(200,138,30,0.22); color: var(--ink); }
 </style>
 </head>
 <body>
@@ -220,6 +222,7 @@
         <button class="tq-tab" id="tabScene">🎭 場面</button>
         <button class="tq-tab" id="tabRhythm">🎵 リズム</button>
       </div>
+      <button class="tq-auto" id="autoReadBtn" type="button"></button>
     </div>
 
     <div class="tq-pc" id="progressCard">
@@ -542,6 +545,28 @@
     utter.rate = 0.9;
     window.speechSynthesis.speak(utter);
   }
+  let autoRead = lsGet('vocab-quiz-autoread') !== '0';
+  function speakSeq(parts) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    parts.forEach((p) => {
+      if (!p || !p.t) return;
+      const u = new SpeechSynthesisUtterance(String(p.t).slice(0, 200));
+      u.lang = p.lang; u.rate = p.lang === 'ja-JP' ? 1.1 : 0.9;
+      window.speechSynthesis.speak(u);
+    });
+  }
+  const autoReadBtn = document.getElementById('autoReadBtn');
+  function renderAutoRead() {
+    autoReadBtn.textContent = autoRead ? '🔊 自動読み上げ ON' : '🔇 自動読み上げ OFF';
+    autoReadBtn.classList.toggle('on', autoRead);
+  }
+  autoReadBtn.addEventListener('click', () => {
+    autoRead = !autoRead; lsSet('vocab-quiz-autoread', autoRead ? '1' : '0');
+    renderAutoRead();
+    if (autoRead) speakSeq([{ t: 'Auto read is on.', lang: 'en-US' }]); else { try { window.speechSynthesis.cancel(); } catch (e) {} }
+  });
+  renderAutoRead();
 
   function shuffle(arr) {
     const a = [...arr];
@@ -952,7 +977,7 @@
     nx.addEventListener('click', () => { sIdx += 1; if (sIdx >= scene.steps.length) renderSceneResult(); else renderStep(); });
     row.appendChild(back); row.appendChild(nx);
     sceneBody.appendChild(row);
-    setTimeout(() => speak(st.n), 250);
+    if (autoRead) setTimeout(() => speak(st.n), 250);
   }
 
   function answerStep(box, btn, txt, st) {
@@ -977,7 +1002,7 @@
     fb.style.display = 'block';
     document.getElementById('sceneNext').classList.remove('hidden');
     bumpWords(st.k, ok);
-    speak(st.c);
+    if (autoRead) speakSeq([{ t: st.c, lang: 'en-US' }, { t: st.cj, lang: 'ja-JP' }]);
   }
 
   function renderSceneResult() {
@@ -1453,7 +1478,9 @@
       nextBtn.textContent = '次へ';
     }
     scoreLabel.textContent = `正解数 ${score.correct} / ${score.total}`;
-    speak(speakText || ((currentType === 'cloze' && current.ex) ? current.ex : correctText));
+    if (autoRead) {
+      speakSeq([{ t: current.word, lang: 'en-US' }, { t: current.hint, lang: 'ja-JP' }, { t: current.ex, lang: 'en-US' }]);
+    }
   }
 
   function revealExample() {
