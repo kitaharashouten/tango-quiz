@@ -977,7 +977,6 @@
     nx.addEventListener('click', () => { sIdx += 1; if (sIdx >= scene.steps.length) renderSceneResult(); else renderStep(); });
     row.appendChild(back); row.appendChild(nx);
     sceneBody.appendChild(row);
-    if (autoRead) setTimeout(() => speak(st.n), 250);
   }
 
   function answerStep(box, btn, txt, st) {
@@ -1002,7 +1001,6 @@
     fb.style.display = 'block';
     document.getElementById('sceneNext').classList.remove('hidden');
     bumpWords(st.k, ok);
-    if (autoRead) speakSeq([{ t: st.c, lang: 'en-US' }]);
   }
 
   function renderSceneResult() {
