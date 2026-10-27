@@ -199,6 +199,14 @@
   .tq-rh-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); background: transparent; }
   .tq-rh-dot.on { background: var(--mustard); border-color: var(--mustard-deep); transform: scale(1.3); }
   .tq-scene-grp { margin-top: 18px; font-size: 13px; font-weight: 700; color: var(--mustard-deep); border-bottom: 1.5px dashed var(--ink-soft); padding-bottom: 4px; }
+  .tq-rh-label.say { color: var(--brick); }
+  .tq-rh-judge { text-align: center; font-size: 22px; font-weight: 700; min-height: 32px; margin-bottom: 8px; color: var(--ink-soft); }
+  .tq-rh-judge.perfect { color: var(--mustard-deep); }
+  .tq-rh-judge.good { color: var(--sage); }
+  .tq-rh-judge.miss { color: var(--brick); }
+  .tq-rh-tap { width: 100%; padding: 26px 12px; font-size: 20px; font-weight: 700; font-family: 'Zen Maru Gothic', sans-serif; border: 3px solid var(--ink); border-radius: 10px; background: rgba(200,138,30,0.18); color: var(--ink); cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  .tq-rh-tap.hit { background: var(--mustard); transform: scale(0.98); }
+  .tq-rh-score { text-align: center; font-size: 14px; font-weight: 700; margin: 12px 0 14px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -990,65 +998,99 @@
     sceneBody.appendChild(row);
   }
 
-  // ===== 🎵 リズムモード =====
+  // ===== 🎵 リズムモード（ビート＋タップ判定） =====
   const rhythmView = document.getElementById('rhythmView');
   const tabRhythm = document.getElementById('tabRhythm');
   const rhythmBody = document.getElementById('rhythmBody');
-  const R_LABELS = ['👂 聞いて', '👂 聞いて', '🗣 言ってみて！', '🗣 言ってみて！', '💡 意味', '💡 意味', '🗣 もう一回！', '🗣 もう一回！'];
+  const R_LABELS = ['👂 聞いて', '👂 聞いて', '🗣 言って！', '🗣 言って！', '💡 意味', '💡 意味', '🗣 もう一回！', '🗣 もう一回！'];
   const R_COUNT = 8;
-  let rBpm = [60, 80, 100].includes(Number(lsGet('vocab-quiz-bpm'))) ? Number(lsGet('vocab-quiz-bpm')) : 80;
+  const R_WIN = 0.3;
+  let rBpm = [80, 100, 120].includes(Number(lsGet('vocab-quiz-bpm2'))) ? Number(lsGet('vocab-quiz-bpm2')) : 100;
   let rClick = lsGet('vocab-quiz-click') !== '0';
-  let rTimer = null, rQueue = [], rIdx = 0, rBeat = 0, rRunning = false, rAudio = null;
+  let rCtx = null, rNoise = null, rTimer = null, rRunning = false;
+  let rQueue = [], rNext = 0, rNo = -4, rEvents = [], rTargets = [], rBeatTimes = {};
+  let rScore = 0, rCombo = 0, rMaxCombo = 0, rStat = { perfect: 0, good: 0, miss: 0 };
 
-  function rBeep(accent) {
+  function rEnsureCtx() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!rCtx) {
+      rCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const len = Math.floor(rCtx.sampleRate * 0.2);
+      rNoise = rCtx.createBuffer(1, len, rCtx.sampleRate);
+      const d = rNoise.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (rCtx.state === 'suspended') rCtx.resume();
+  }
+  function rKick(t, v) {
+    const o = rCtx.createOscillator(), g = rCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(g); g.connect(rCtx.destination);
+    o.start(t); o.stop(t + 0.22);
+  }
+  function rNoiseHit(t, v, dur, hp) {
+    const s = rCtx.createBufferSource(), f = rCtx.createBiquadFilter(), g = rCtx.createGain();
+    s.buffer = rNoise; f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(rCtx.destination);
+    s.start(t); s.stop(t + dur + 0.02);
+  }
+  function rPlayBeat(no, t, d) {
     if (!rClick) return;
-    try {
-      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-      if (!rAudio) rAudio = new (window.AudioContext || window.webkitAudioContext)();
-      if (rAudio.state === 'suspended') rAudio.resume();
-      const t0 = rAudio.currentTime;
-      const o = rAudio.createOscillator(), g = rAudio.createGain();
-      o.type = 'triangle';
-      o.frequency.value = accent ? 1100 : 700;
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(accent ? 0.6 : 0.4, t0 + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
-      o.connect(g); g.connect(rAudio.destination);
-      o.start(t0); o.stop(t0 + 0.13);
-    } catch (e) {}
+    const k = ((no % 4) + 4) % 4;
+    if (k === 0 || k === 2) rKick(t, k === 0 ? 0.9 : 0.7);
+    if (k === 1 || k === 3) rNoiseHit(t, 0.45, 0.14, 1800);
+    rNoiseHit(t, 0.12, 0.04, 7000);
+    rNoiseHit(t + d / 2, 0.08, 0.04, 7000);
+  }
+  function rTapBlip(grade) {
+    if (!rClick || !rCtx) return;
+    const t = rCtx.currentTime, o = rCtx.createOscillator(), g = rCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = grade === 'perfect' ? 1320 : 880;
+    g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    o.connect(g); g.connect(rCtx.destination); o.start(t); o.stop(t + 0.12);
   }
   function speakJa(text) {
     if (!('speechSynthesis' in window) || !text) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(String(text).slice(0, 40));
-    u.lang = 'ja-JP'; u.rate = 1.05;
+    u.lang = 'ja-JP'; u.rate = 1.1;
     window.speechSynthesis.speak(u);
   }
 
   function rhythmStop() {
     rRunning = false;
-    if (rTimer) { clearTimeout(rTimer); rTimer = null; }
+    if (rTimer) { clearInterval(rTimer); rTimer = null; }
     try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
   }
 
   function renderRhythmMenu() {
     rhythmStop();
     rhythmBody.textContent = '';
-    rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 リズム音読（約1分）'));
-    rhythmBody.appendChild(el('p', 'tq-rh-desc', '拍に合わせて「聞く → 言う → 意味 → もう一回言う」を、' + R_COUNT + '語ぶん流すっす。画面を見ながら声に出してね。苦手な単語が多めに出るっす。クリック音が出ない時は、スマホのマナーモードを切って、音量を上げてね（🔔を押すと試し鳴りするっす）。'));
+    rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 リズム音読バトル（約40秒）'));
+    rhythmBody.appendChild(el('p', 'tq-rh-desc', 'ビートに乗って、「聞く → 言う → 意味 → もう一回言う」を' + R_COUNT + '語ぶん。「言って！」の拍で、声に出しながら🥁をタップ。拍にぴったりだとPERFECT、連続するとコンボっす。苦手な単語が多めに出るっす。音が出ない時は、マナーモードを切って音量を上げてね。'));
     const pool = baseEntries();
     if (pool.length === 0) { rhythmBody.appendChild(el('div', 'tq-empty', '単語がないっす（カテゴリーの絞り込みを確認してね）')); return; }
-    rhythmBody.appendChild(el('div', 'tq-label', 'テンポ'));
+    rhythmBody.appendChild(el('div', 'tq-label', 'テンポ（BPM）'));
     const tempo = el('div', 'tq-mode-toggle');
-    [[60, 'ゆっくり'], [80, 'ふつう'], [100, 'はやい']].forEach(([v, t]) => {
+    [[80, 'ゆっくり'], [100, 'ふつう'], [120, 'はやい']].forEach(([v, t]) => {
       const b = el('button', 'tq-mode-btn' + (rBpm === v ? ' active' : ''), t); b.type = 'button';
-      b.addEventListener('click', () => { rBpm = v; lsSet('vocab-quiz-bpm', String(v)); renderRhythmMenu(); });
+      b.addEventListener('click', () => { rBpm = v; lsSet('vocab-quiz-bpm2', String(v)); renderRhythmMenu(); });
       tempo.appendChild(b);
     });
     rhythmBody.appendChild(tempo);
-    const ck = el('button', 'tq-mode-btn' + (rClick ? ' active' : ''), rClick ? '🔔 クリック音 ON' : '🔕 クリック音 OFF'); ck.type = 'button';
+    const ck = el('button', 'tq-mode-btn' + (rClick ? ' active' : ''), rClick ? '🥁 ビート音 ON' : '🔕 ビート音 OFF'); ck.type = 'button';
     ck.style.marginTop = '10px';
-    ck.addEventListener('click', () => { rClick = !rClick; lsSet('vocab-quiz-click', rClick ? '1' : '0'); if (rClick) rBeep(true); renderRhythmMenu(); });
+    ck.addEventListener('click', () => {
+      rClick = !rClick; lsSet('vocab-quiz-click', rClick ? '1' : '0');
+      if (rClick) { try { rEnsureCtx(); rKick(rCtx.currentTime + 0.02, 0.9); } catch (e) {} }
+      renderRhythmMenu();
+    });
     rhythmBody.appendChild(ck);
     const go = el('button', 'tq-btn tq-rh-go', '▶ スタート'); go.type = 'button';
     go.addEventListener('click', rhythmStart);
@@ -1058,44 +1100,126 @@
   function rhythmStart() {
     rQueue = weightedOrder(baseEntries().slice()).slice(0, R_COUNT);
     if (rQueue.length === 0) return;
-    rIdx = 0; rBeat = 0; rRunning = true;
-    if (rClick) rBeep(true);
+    try { rEnsureCtx(); } catch (e) { rCtx = null; }
+    if (!rCtx) return;
+    rScore = 0; rCombo = 0; rMaxCombo = 0; rStat = { perfect: 0, good: 0, miss: 0 };
+    rEvents = []; rTargets = []; rBeatTimes = {}; rNo = -4;
+    rNext = rCtx.currentTime + 0.2;
+    rRunning = true;
     rhythmBody.textContent = '';
-    rhythmBody.appendChild(el('div', 'tq-scene-head', '🎵 リズム音読')); rhythmBody.lastChild.id = 'rhHead';
+    const head = el('div', 'tq-scene-head', '🎵'); head.id = 'rhHead'; rhythmBody.appendChild(head);
     const w = el('div', 'tq-rh-word'); w.id = 'rhWord'; rhythmBody.appendChild(w);
     const m = el('div', 'tq-rh-mean'); m.id = 'rhMean'; rhythmBody.appendChild(m);
     const lb = el('div', 'tq-rh-label'); lb.id = 'rhLabel'; rhythmBody.appendChild(lb);
     const dots = el('div', 'tq-rh-dots'); dots.id = 'rhDots';
     for (let i = 0; i < 8; i++) dots.appendChild(el('span', 'tq-rh-dot'));
     rhythmBody.appendChild(dots);
+    const jg = el('div', 'tq-rh-judge'); jg.id = 'rhJudge'; rhythmBody.appendChild(jg);
+    const tap = el('button', 'tq-rh-tap', '🥁 言いながらタップ！'); tap.type = 'button'; tap.id = 'rhTap';
+    tap.addEventListener('pointerdown', (ev) => { ev.preventDefault(); rTap(); });
+    rhythmBody.appendChild(tap);
+    const sc = el('div', 'tq-rh-score'); sc.id = 'rhScore'; rhythmBody.appendChild(sc);
     const stop = el('button', 'tq-btn tq-btn-ghost', '■ やめる'); stop.type = 'button';
     stop.addEventListener('click', renderRhythmMenu);
     rhythmBody.appendChild(stop);
-    rTick();
+    rRenderScore();
+    rTimer = setInterval(rPump, 25);
   }
 
-  function rTick() {
-    if (!rRunning) return;
-    if (rIdx >= rQueue.length) { rhythmFinish(); return; }
-    const e = rQueue[rIdx];
-    document.getElementById('rhHead').textContent = '🎵 ' + (rIdx + 1) + ' / ' + rQueue.length;
-    document.getElementById('rhWord').textContent = e.word;
-    document.getElementById('rhMean').textContent = rBeat >= 4 ? e.hint : '？';
-    document.getElementById('rhLabel').textContent = R_LABELS[rBeat];
-    document.querySelectorAll('#rhDots .tq-rh-dot').forEach((d, i) => d.classList.toggle('on', i === rBeat));
-    rBeep(rBeat === 0);
-    if (rBeat === 0) speak(e.word);
-    if (rBeat === 4) speakJa(e.hint);
-    rBeat += 1;
-    if (rBeat >= 8) { rBeat = 0; rIdx += 1; }
-    rTimer = setTimeout(rTick, 60000 / rBpm);
+  function rRenderScore() {
+    const s = document.getElementById('rhScore');
+    if (s) s.textContent = 'SCORE ' + rScore + '　COMBO ' + rCombo;
   }
+  function rJudge(text, cls) {
+    const j = document.getElementById('rhJudge');
+    if (!j) return;
+    j.textContent = text; j.className = 'tq-rh-judge ' + (cls || '');
+  }
+
+  function rPump() {
+    if (!rRunning || !rCtx) return;
+    const d = 60 / rBpm;
+    const now = rCtx.currentTime;
+    while (rNext < now + 0.15 && rNo <= R_COUNT * 8) {
+      rPlayBeat(rNo, rNext, d);
+      const bw = ((rNo % 8) + 8) % 8;
+      rBeatTimes[rNo] = rNext;
+      rEvents.push({ no: rNo, t: rNext });
+      if (rNo >= 0 && rNo < R_COUNT * 8 && (bw === 2 || bw === 6)) rTargets.push({ no: rNo, t: rNext, done: false });
+      rNext += d; rNo += 1;
+    }
+    const lat = rCtx.outputLatency || rCtx.baseLatency || 0;
+    while (rEvents.length && rEvents[0].t + lat <= now) rFireBeat(rEvents.shift());
+    rTargets.forEach((tg) => {
+      if (!tg.done && now > tg.t + lat + R_WIN) { tg.done = true; rResult('miss'); }
+    });
+  }
+
+  function rFireBeat(ev) {
+    if (!rRunning) return;
+    const no = ev.no;
+    if (no >= R_COUNT * 8) { rhythmFinish(); return; }
+    const lb = document.getElementById('rhLabel');
+    if (!lb) return;
+    if (no < 0) {
+      document.getElementById('rhHead').textContent = '🎵 じゅんび…';
+      document.getElementById('rhWord').textContent = String(-no);
+      document.getElementById('rhMean').textContent = '';
+      lb.textContent = 'ビートに乗る準備！';
+      document.querySelectorAll('#rhDots .tq-rh-dot').forEach((x) => x.classList.remove('on'));
+      return;
+    }
+    const wi = Math.floor(no / 8), b = no % 8, e = rQueue[wi];
+    document.getElementById('rhHead').textContent = '🎵 ' + (wi + 1) + ' / ' + rQueue.length;
+    document.getElementById('rhWord').textContent = e.word;
+    document.getElementById('rhMean').textContent = b >= 4 ? e.hint : '？';
+    lb.textContent = R_LABELS[b];
+    lb.classList.toggle('say', b === 2 || b === 3 || b === 6 || b === 7);
+    document.querySelectorAll('#rhDots .tq-rh-dot').forEach((x, i) => x.classList.toggle('on', i === b));
+    if (b === 0) speak(e.word);
+    if (b === 4) speakJa(e.hint);
+  }
+
+  function rResult(grade) {
+    if (grade === 'miss') { rStat.miss += 1; rCombo = 0; rJudge('MISS…', 'miss'); }
+    else {
+      rStat[grade] += 1; rCombo += 1; rMaxCombo = Math.max(rMaxCombo, rCombo);
+      rScore += (grade === 'perfect' ? 100 : 50) + Math.min(rCombo, 10) * 5;
+      rJudge(grade === 'perfect' ? 'PERFECT!' : 'GOOD', grade);
+    }
+    rRenderScore();
+  }
+
+  function rTap() {
+    if (!rRunning || !rCtx) return;
+    const lat = rCtx.outputLatency || rCtx.baseLatency || 0;
+    const now = rCtx.currentTime;
+    let best = null, bd = 9;
+    rTargets.forEach((tg) => {
+      if (tg.done) return;
+      const dt = Math.abs(now - (tg.t + lat));
+      if (dt < bd) { bd = dt; best = tg; }
+    });
+    const btn = document.getElementById('rhTap');
+    if (btn) { btn.classList.add('hit'); setTimeout(() => btn.classList.remove('hit'), 90); }
+    if (!best || bd > R_WIN) { rJudge('…（言う拍でタップ）', ''); return; }
+    best.done = true;
+    const grade = bd <= 0.09 ? 'perfect' : bd <= 0.18 ? 'good' : 'miss';
+    rTapBlip(grade);
+    rResult(grade);
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (rRunning && ev.code === 'Space') { ev.preventDefault(); rTap(); }
+  });
 
   function rhythmFinish() {
     rhythmStop();
+    const total = rStat.perfect + rStat.good + rStat.miss;
     rhythmBody.textContent = '';
     rhythmBody.appendChild(el('div', 'tq-quiz-q', '🎵 おつかれさま！'));
-    rhythmBody.appendChild(el('p', 'tq-result-text', rQueue.length + '語、声に出したっす。耳と口で覚えた単語は、あとでクイズで確かめるとさらに定着するっす。'));
+    rhythmBody.appendChild(el('p', 'tq-result-text', rQueue.length + '語を声に出したっす。スコア ' + rScore + '（最大コンボ ' + rMaxCombo + '）'));
+    rhythmBody.appendChild(el('div', 'tq-result-sub', 'PERFECT ' + rStat.perfect + '　GOOD ' + rStat.good + '　MISS ' + rStat.miss + '（全' + total + '回）'));
+    if (total > 0 && rStat.miss === 0) confetti(40);
     const row = el('div', 'tq-result-actions');
     const again = el('button', 'tq-btn', 'もう一周'); again.type = 'button';
     again.addEventListener('click', rhythmStart);
